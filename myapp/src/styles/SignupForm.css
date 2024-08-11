@@ -1,0 +1,43 @@
+form {
+    display: flex; /* Arrange elements horizontally */
+    flex-direction: column; /* Stack elements vertically */
+    align-items: center; /* Center elements horizontally */
+    margin: 2rem auto; /* Add some margin for spacing */
+    width: fit-content; /* Adjust width based on content */
+    padding: 2rem; /* Add some padding within the form */
+    border-radius: 5px; /* Add subtle rounded corners */
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+    background-color: #f5f5f5; /* Light background color */
+  }
+ 
+  label {
+    margin-bottom: 0.5rem; /* Add some space below labels */
+    display: block; /* Ensure labels appear on separate lines */
+    font-weight: bold; /* Make labels stand out slightly */
+  }
+ 
+  input[type="email"],
+  input[type="password"] {
+    width: 100%; /* Make inputs fill the available width */
+    padding: 0.75rem 1rem; /* Add some padding for readability */
+    border: 1px solid #ccc; /* Basic border for inputs */
+    border-radius: 3px; /* Rounded corners for a softer look */
+    font-size: 16px; /* Consistent font size */
+  }
+ 
+  button[type="submit"] {
+    margin-top: 1rem; /* Add some space above the button */
+    padding: 0.75rem 1rem; /* Consistent padding within button */
+    border: none; /* Remove default button border */
+    border-radius: 3px; /* Rounded corners for a cleaner look */
+    background-color: #4CAF50; /* Green color for submit button */
+    color: white; /* White text for contrast */
+    font-weight: bold; /* Make button text stand out */
+    cursor: pointer; /* Indicate interactive element */
+    transition: background-color 0.2s ease-in-out; /* Smooth hover effect */
+  }
+ 
+  button[type="submit"]:hover {
+    background-color: #3e8e41; /* Darker green on hover */
+  }
+  

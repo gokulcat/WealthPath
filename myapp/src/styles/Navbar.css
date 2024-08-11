@@ -1,0 +1,66 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #333;
+  color: #fff;
+  width: 100%;
+}
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.logo {
+  font-size: 20px;
+  font-weight: bold;
+  text-decoration: none;
+  color: #fff;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-menu li {
+  margin: 0 10px;
+}
+
+.nav-menu a {
+  text-decoration: none;
+  color: #fff;
+  padding: 10px 15px;
+  transition: all 0.3s ease-in-out;
+}
+
+.nav-menu a:hover {
+  background-color: #ac9821;
+  color: #333;
+}
+
+.Export {
+  background-color: #333;
+
+  a {
+    color: whitesmoke;
+  }
+}
+
+.sp {
+  color: #ac9821;
+}
+
+@media screen and (max-width: 768px) {
+  body {
+    overflow-x: auto; /* Allow horizontal scrolling if content overflows */
+  }
+}
