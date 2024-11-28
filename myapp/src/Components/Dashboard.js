@@ -1,61 +1,52 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
 import { Bar, Pie } from "react-chartjs-2";
-import "chart.js/auto"; // Add this line to register missing elements
+import "chart.js/auto"; // Register missing chart elements
 
 const Dashboard = () => {
   const [expensesOverview, setExpensesOverview] = useState(null);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const url = "http://localhost:4000/dashboard";
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get(url);
-        console.log(response);
-        setExpensesOverview(response.data.expenses_overview);
-        setTotalExpenses(
-          response.data.expenses_overview.total_expenses[0].total
-        );
-        console.log("sssss");
-      } catch (error) {
-        console.log("Error occurred");
-        console.error(error);
-      }
+    // Simulate fetching data with mock data
+    const mockData = {
+      expenses_overview: {
+        total_expenses: [{ total: 1250 }], // Total expenses
+        expenses_by_category: [
+          { category: "Food", total: 400 },
+          { category: "Transport", total: 200 },
+          { category: "Entertainment", total: 150 },
+          { category: "Utilities", total: 300 },
+          { category: "Healthcare", total: 200 },
+        ],
+        expenses_by_month: [
+          { _id: "January", total: 500 },
+          { _id: "February", total: 400 },
+          { _id: "March", total: 350 },
+        ],
+      },
     };
 
-    fetchData();
+    setExpensesOverview(mockData.expenses_overview);
+    setTotalExpenses(mockData.expenses_overview.total_expenses[0].total);
   }, []);
 
   if (!expensesOverview) {
-    return <div>Loading...</div>;
+    return <div className="text-center mt-10 text-gray-500">Loading...</div>;
   }
 
-  let categoryLabels = [];
-  let categoryData = [];
-  let monthLabels = [];
-  let monthData = [];
+  const categoryLabels = expensesOverview.expenses_by_category.map(
+    (expense) => expense.category
+  );
+  const categoryData = expensesOverview.expenses_by_category.map(
+    (expense) => expense.total
+  );
 
-  if (Array.isArray(expensesOverview.expenses_by_category)) {
-    categoryLabels = expensesOverview.expenses_by_category.map(
-      (expense) => expense.category
-    );
-    categoryData = expensesOverview.expenses_by_category.map(
-      (expense) => expense.total
-    );
-  } else {
-    console.log("expenses_by_category is not an array");
-  }
-
-  if (Array.isArray(expensesOverview.expenses_by_month)) {
-    monthLabels = expensesOverview.expenses_by_month.map(
-      (expense) => expense._id
-    );
-    monthData = expensesOverview.expenses_by_month.map(
-      (expense) => expense.total
-    );
-  } else {
-    console.log("expenses_by_month is not an array");
-  }
+  const monthLabels = expensesOverview.expenses_by_month.map(
+    (expense) => expense._id
+  );
+  const monthData = expensesOverview.expenses_by_month.map(
+    (expense) => expense.total
+  );
 
   const pieData = {
     labels: categoryLabels,
@@ -69,7 +60,6 @@ const Dashboard = () => {
           "rgba(255, 206, 86, 0.2)",
           "rgba(75, 192, 192, 0.2)",
           "rgba(153, 102, 255, 0.2)",
-          "rgba(255, 159, 64, 0.2)",
         ],
         borderColor: [
           "rgba(255, 99, 132, 1)",
@@ -77,7 +67,6 @@ const Dashboard = () => {
           "rgba(255, 206, 86, 1)",
           "rgba(75, 192, 192, 1)",
           "rgba(153, 102, 255, 1)",
-          "rgba(255, 159, 64, 1)",
         ],
         borderWidth: 1,
       },
@@ -98,30 +87,38 @@ const Dashboard = () => {
   };
 
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", alignItems: "center", color: "black", opacity: 0.9 }}
-    >
-      <div style={{ backgroundColor: '#f5f5f5', borderRadius: '5px', padding: '20px', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)', margin: '10px' }}>
-        <h2 style={{ fontSize: 24, fontWeight: "bold", marginBottom: 20 ,textAlign:'center',textDecoration:"underline"}}>
+    <div className="min-h-screen flex flex-col items-center bg-gray-100 py-10">
+      <div className="w-full max-w-4xl bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-3xl font-semibold text-center text-purple-600 mb-6 underline">
           Dashboard
         </h2>
-        <h3 style={{ fontSize: 18, marginBottom: 20 ,textAlign:'center'}}>
-          Total Expenses: {totalExpenses}
+        <h3 className="text-xl font-medium text-center text-gray-800 mb-6">
+          Total Expenses: <span className="font-bold">${totalExpenses}</span>
         </h3>
-        <div style={{ width: 500, height: 300, marginBottom: 20 }}>
-          <Pie data={pieData} />
 
+        <div className="mb-8">
+          <h3 className="text-center text-lg font-medium text-gray-700 mb-4">
+            Expenses by Category
+          </h3>
+          <div className="flex justify-center">
+            <div className="w-full max-w-md">
+              <Pie data={pieData} />
+            </div>
+          </div>
         </div>
-        <h3 style={
-          {textAlign:'center'}
-        }>Expenses By Month</h3>
-        <div style={{ width: 500, height: 300 }}>
-          <Bar data={barData} />
+
+        <div>
+          <h3 className="text-center text-lg font-medium text-gray-700 mb-4">
+            Expenses by Month
+          </h3>
+          <div className="flex justify-center">
+            <div className="w-full max-w-md">
+              <Bar data={barData} />
+            </div>
+          </div>
         </div>
       </div>
-
     </div>
-
   );
 };
 

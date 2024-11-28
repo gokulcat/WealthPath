@@ -5,7 +5,6 @@ import Expenses from "./Components/Expenses";
 import GoalForm from "./Components/GoalForm";
 import BudgetForm from "./Components/BudgetForm";
 import Dashboard from "./Components/Dashboard";
-import ExportExpensesForm from "./Components/ExportExpensesForm";
 import Navbar from "./Components/Navbar";
 import WealthWise from "./Components/WealthWise";
 import { useState, useEffect } from "react";
@@ -61,16 +60,7 @@ function App() {
             isAuthenticated ? <Expenses /> : <Navigate to="/login" replace />
           }
         />
-        <Route
-          path="/expenses/export"
-          element={
-            isAuthenticated ? (
-              <ExportExpensesForm />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
+        
         <Route
           path="/budget"
           element={

@@ -1,58 +1,84 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState } from "react";
 
 function BudgetForm() {
-  const [budgetAmount, setBudgetAmount] = useState('');
-  const [category, setCategory] = useState('');
-  const url = "http://localhost:4000/budgets";
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [category, setCategory] = useState("");
+  const [budgets, setBudgets] = useState([]);
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    console.log("Budget Set Successfully")
+    const newBudget = { category, budgetAmount };
+    setBudgets([...budgets, newBudget]);
 
-    try {
-      const response = await axios.post(url, {
-        budget_amount: budgetAmount,
-        category,
-      });
+    setCategory("");
+    setBudgetAmount("");
 
-      console.log(response.data);
-      // handle successful budget creation here
-      alert('Budget set successfully!');
-    } catch (error) {
-      console.error(error.response.data);
-      // handle error here
-      alert('Error creating budget. Please try again.');
-    }
+    alert("Budget set successfully!");
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Add Your Budget</h2>
-      <div style={{ display: 'flex', marginBottom: '10px' }}>
-        <label htmlFor="category" style={{ marginRight: '10px' }}>Category:</label>
-        <input
-          type="text"
-          id="category"
-          value={category}
-          onChange={(event) => setCategory(event.target.value)}
-          style={{ flexGrow: 1, marginRight: '10px' }}
-        />
-      </div>
+    <div className="min-h-screen flex flex-col items-center bg-gray-100 py-10">
+      <div className="w-full max-w-lg bg-white p-6 rounded-lg shadow-md">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <h2 className="text-2xl font-semibold text-center text-purple-600">
+            Add Your Budget
+          </h2>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Category</label>
+            <input
+              type="text"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Budget Amount</label>
+            <input
+              type="number"
+              value={budgetAmount}
+              onChange={(e) => setBudgetAmount(e.target.value)}
+              className="mt-2 p-3 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600"
+              required
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            Set Budget
+          </button>
+        </form>
 
-      <div style={{ display: 'flex', marginBottom: '10px' }}>
-        <label htmlFor="budgetAmount" style={{ marginRight: '10px' }}>Budget Amount:</label>
-        <input
-          type="number"
-          id="budgetAmount"
-          value={budgetAmount}
-          onChange={(event) => setBudgetAmount(event.target.value)}
-          style={{ flexGrow: 1 }}
-        />
+        {/* Budgets Table */}
+        <div className="mt-6">
+          <h3 className="text-xl font-semibold text-center text-gray-800">Your Budgets</h3>
+          {budgets.length > 0 ? (
+            <div className="mt-4">
+              <table className="w-full border-collapse bg-white">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="p-2 border border-gray-300">Category</th>
+                    <th className="p-2 border border-gray-300">Budget Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {budgets.map((budget, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="p-2 text-center">{budget.category}</td>
+                      <td className="p-2 text-center">${budget.budgetAmount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-center mt-4 text-gray-600">No budgets added yet.</p>
+          )}
+        </div>
       </div>
-
-      <button type="submit">Set Budget</button>
-    </form>
+    </div>
   );
 }
 

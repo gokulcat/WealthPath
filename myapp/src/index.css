@@ -1,27 +1,6 @@
-body {
-  margin: 0;
-  width: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: black;
-  background-image: url("../public/WW.jpg");
-  background-position: center;
-  background-size: cover;
-  object-fit: cover;
-  justify-content: flex-start;
-  background-attachment: fixed;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
-    monospace;
-}
+@import '@fortawesome/fontawesome-free/css/all.css';
 
-@media screen and (max-width: 768px) {
-  body {
-    overflow-x: auto; 
-  }
-}

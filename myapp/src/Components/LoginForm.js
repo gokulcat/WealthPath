@@ -1,73 +1,92 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import '../styles/LoginForm.css';
-import '../styles/footer.css';
-
+import React, { useState } from "react";
+import Footer from "./Footer";
+import Wealthwise from "../assests/WealthwiseLogo.png";
 
 function LoginForm() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const handleSubmit = async (event) => {
+  const handleSubmit = (event) => {
     event.preventDefault();
-    const url = "http://localhost:4000/auth/login";
 
-    try {
-      const response = await axios.post(url, { email, password });
-      console.log(response.data);
-      localStorage.setItem('isLoggedIn', 'true'); // Set login status in localStorage
+    // Mock login validation for client-side functionality
+    if (email === "test@wealthwise.com" && password === "password123") {
+      localStorage.setItem("isLoggedIn", "true"); // Set login status in localStorage
       window.location.href = "/dashboard"; // Redirect to dashboard
-    } catch (error) {
-      console.error(error.response.data);
+      alert("Login successful! Redirecting to dashboard...");
+    } else {
       alert("Invalid Credentials"); // Show error alert
     }
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <img src="WealthwiseLogo.png" alt='Wealthwise Logo' />
-        <h1> Login</h1>
-        <label htmlFor="email">Email:</label>
-        <input
-          type="email"
-          id="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
-        <label htmlFor="password">Password:</label>
-        <input
-          type="password"
-          id="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        <button type="submit">Log In</button>
-        <br />
-        <a href='/signup'>Don't have an account? Sign Up for WealthWise</a>
+    <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-gray-100 via-purple-200 to-purple-300">
+      {/* Login Form */}
 
-
-      </form>
-      <footer className="footer">
-        <div className="container">
-          <div className='conatiner'>
-            <a href="https://www.facebook.com/" target="_blank" rel="noreferrer">
-              Facebook
-            </a>|
-            <a href="https://twitter.com/" target="_blank" rel="noreferrer">
-              Twitter
-            </a>|
-            <a href="https://www.linkedin.com/" target="_blank" rel="noreferrer">
-              Linkedin
-            </a>|
+      <div className="flex items-center justify-center flex-grow">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white p-8 rounded-lg shadow-lg max-w-sm w-full"
+        >
+          <img
+            src={Wealthwise}
+            alt="Wealthwise Logo"
+            className="mx-auto mb-6 w-30"
+          />
+          <h1 className="text-2xl font-bold text-center text-purple-600 mb-4">
+            Login
+          </h1>
+          <div className="mb-4">
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Email
+            </label>
+            <input
+              type="email"
+              id="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+            />
           </div>
-          &copy; WealthWise 2024, Inc. All rights reserved &nbsp; &nbsp;
-          Terms & Conditions &nbsp; &nbsp;
-          Privacy &nbsp; &nbsp;
-        </div>
-      </footer>
+          <div className="mb-6">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Password
+            </label>
+            <input
+              type="password"
+              id="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+              className="mt-2 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-md transition duration-200"
+          >
+            Log In
+          </button>
+          <div className="text-center mt-4">
+            <a
+              href="/signup"
+              className="text-sm text-purple-600 hover:underline"
+            >
+              Don't have an account? Sign Up for WealthWise
+            </a>
+          </div>
+        </form>
+      </div>
 
-
+      {/* Footer */}
+      <Footer/>
     </div>
   );
 }
