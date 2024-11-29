@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import WealthManagement from "../assests/WealthManagement.jpg";
 
 function GoalForm() {
   const [goal, setGoal] = useState("");
@@ -24,8 +25,11 @@ function GoalForm() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 py-10">
-      <div className="w-full max-w-lg bg-white p-6 rounded-lg shadow-md">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${WealthManagement})` }}
+    >
+      <div className="w-full max-w-lg bg-white bg-opacity-50 p-6 rounded-lg shadow-md">
         <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="text-2xl font-semibold text-center text-purple-600">
             Add Your Goals

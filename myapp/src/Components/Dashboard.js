@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Bar, Pie } from "react-chartjs-2";
 import "chart.js/auto"; // Register missing chart elements
+import WealthManagement from "../assests/WealthManagement.jpg";
 
 const Dashboard = () => {
   const [expensesOverview, setExpensesOverview] = useState(null);
   const [totalExpenses, setTotalExpenses] = useState(0);
 
   useEffect(() => {
-    // Simulate fetching data with mock data
     const mockData = {
       expenses_overview: {
         total_expenses: [{ total: 1250 }], // Total expenses
@@ -87,32 +87,37 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gray-100 py-10">
-      <div className="w-full max-w-4xl bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-3xl font-semibold text-center text-purple-600 mb-6 underline">
+    <div
+      className="min-h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${WealthManagement})` }}
+    >
+      <div className="w-full max-w-xl h-[630px] bg-white bg-opacity-60 p-6 rounded-lg shadow-md space-y-2 overflow-hidden">
+        <h2 className="text-3xl font-semibold text-center text-purple-600 underline ">
           Dashboard
         </h2>
-        <h3 className="text-xl font-medium text-center text-gray-800 mb-6">
+        <h3 className="text-xl font-medium text-center text-gray-800 ">
           Total Expenses: <span className="font-bold">${totalExpenses}</span>
         </h3>
 
+        {/* Expenses by Category */}
         <div className="mb-8">
           <h3 className="text-center text-lg font-medium text-gray-700 mb-4">
             Expenses by Category
           </h3>
           <div className="flex justify-center">
-            <div className="w-full max-w-md">
+            <div className="w-[250px] h-[250px]">
               <Pie data={pieData} />
             </div>
           </div>
         </div>
 
+        {/* Expenses by Month */}
         <div>
           <h3 className="text-center text-lg font-medium text-gray-700 mb-4">
             Expenses by Month
           </h3>
           <div className="flex justify-center">
-            <div className="w-full max-w-md">
+            <div className="w-[300px] h-[250px]">
               <Bar data={barData} />
             </div>
           </div>
