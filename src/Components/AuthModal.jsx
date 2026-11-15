@@ -1,14 +1,26 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-react";
-import Wealthwise from "../assests/WealthwiseLogo.png";
+
+const USERS_STORAGE_KEY = "wealthwise_users";
 
 function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem(USERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (error) {
+      console.error("Error loading registered users:", error);
+    }
+    return [];
+  });
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
@@ -40,7 +52,16 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
     event.preventDefault();
     setFeedback(null);
 
-    if (email === "test@wealthwise.com" && password === "password123") {
+    const normalizedEmail = email.trim().toLowerCase();
+    const isDemoUser =
+      normalizedEmail === "test@wealthwise.com" && password === "password123";
+    const matchedRegistered = users.some(
+      (u) =>
+        (u.email || "").trim().toLowerCase() === normalizedEmail &&
+        u.password === password
+    );
+
+    if (isDemoUser || matchedRegistered) {
       localStorage.setItem("isLoggedIn", "true");
       if (onLogin) {
         onLogin();
@@ -59,7 +80,13 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
     event.preventDefault();
     setFeedback(null);
 
-    const userExists = users.some((user) => user.email === email);
+    const normalizedEmail = email.trim().toLowerCase();
+    const userExists =
+      normalizedEmail === "test@wealthwise.com" ||
+      users.some(
+        (user) => (user.email || "").trim().toLowerCase() === normalizedEmail
+      );
+
     if (userExists) {
       setFeedback({
         type: "error",
@@ -68,22 +95,26 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
       return;
     }
 
-    const updatedUsers = [...users, { email, password }];
+    const updatedUsers = [...users, { email: email.trim(), password }];
     setUsers(updatedUsers);
+    try {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
+    } catch (error) {
+      console.error("Error saving registered users:", error);
+    }
+
     setEmail("");
     setPassword("");
-    console.log("Registered Users:", updatedUsers);
-
     setFeedback({
       type: "success",
-      text: "User Registered Successfully!",
+      text: "User Registered Successfully! You can now log in.",
     });
     onSwitchMode("login");
   };
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/55 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0b1c30]/60 backdrop-blur-xs"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -97,32 +128,30 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
           type="button"
           onClick={onClose}
           aria-label="Close popup"
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-[#0b1c30] hover:bg-[#eff4ff] transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="text-center mb-6">
-          <img
-            src={Wealthwise}
-            alt="Wealthwise Logo"
-            className="mx-auto mb-4 h-12 w-auto object-contain"
-          />
+          <div className="mx-auto mb-3.5 w-11 h-11 rounded-xl bg-[#006948] text-white flex items-center justify-center text-xl font-bold shadow-xs">
+            W
+          </div>
           <h2
             id="auth-modal-title"
-            className="text-2xl font-bold tracking-tight text-slate-900"
+            className="text-2xl font-bold tracking-tight text-[#0b1c30]"
           >
             {isLogin ? "Login to WealthWise" : "Create your account"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
             {isLogin
               ? "Enter your credentials to access your financial workspace"
-              : "Start tracking expenses, budgets, and goals with WealthWise"}
+              : "Start planning income, budgets, expenses, and savings vaults"}
           </p>
         </div>
 
         {/* Mode Switch Tabs */}
-        <div className="grid grid-cols-2 gap-1 p-1 mb-5 bg-slate-100 rounded-lg border border-slate-200">
+        <div className="grid grid-cols-2 gap-1 p-1 mb-5 bg-[#eff4ff] rounded-lg border border-slate-200">
           <button
             type="button"
             onClick={() => {
@@ -131,8 +160,8 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
             }}
             className={`py-2 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
               isLogin
-                ? "bg-blue-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                ? "bg-[#006948] text-white shadow-xs"
+                : "text-slate-600 hover:text-[#0b1c30] hover:bg-white/70"
             }`}
           >
             Login
@@ -145,8 +174,8 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
             }}
             className={`py-2 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
               !isLogin
-                ? "bg-blue-700 text-white shadow-xs"
-                : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                ? "bg-[#006948] text-white shadow-xs"
+                : "text-slate-600 hover:text-[#0b1c30] hover:bg-white/70"
             }`}
           >
             Sign Up
@@ -158,8 +187,8 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
             role="alert"
             className={`mb-5 flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-sm font-medium border ${
               feedback.type === "success"
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : "bg-red-50 text-red-700 border-red-200"
+                ? "bg-emerald-50 text-[#006948] border-emerald-200"
+                : "bg-rose-50 text-rose-700 border-rose-200"
             }`}
           >
             {feedback.type === "success" ? (
@@ -178,7 +207,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
           <div>
             <label
               htmlFor="auth-modal-email"
-              className="block text-sm font-medium text-slate-700"
+              className="block text-sm font-medium text-[#0b1c30]"
             >
               Email
             </label>
@@ -190,7 +219,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
               placeholder={isLogin ? "test@wealthwise.com" : "you@example.com"}
               autoFocus
               required
-              className="mt-1.5 block w-full px-3.5 py-2.5 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+              className="mt-1.5 block w-full px-3.5 py-2.5 text-sm text-[#0b1c30] bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948]"
             />
           </div>
 
@@ -198,7 +227,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
             <div className="flex items-center justify-between gap-2">
               <label
                 htmlFor="auth-modal-password"
-                className="block text-sm font-medium text-slate-700"
+                className="block text-sm font-medium text-[#0b1c30]"
               >
                 Password
               </label>
@@ -210,7 +239,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                     setPassword("password123");
                     setFeedback(null);
                   }}
-                  className="text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                  className="text-xs font-medium text-[#006948] hover:text-[#00855d] hover:underline cursor-pointer"
                 >
                   Fill demo account
                 </button>
@@ -224,13 +253,13 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder={isLogin ? "Enter your password" : "Create a password"}
                 required
-                className="block w-full px-3.5 py-2.5 pr-10 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                className="block w-full px-3.5 py-2.5 pr-10 text-sm text-[#0b1c30] bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948]"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? "Hide password" : "Show password"}
-                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-[#0b1c30] cursor-pointer"
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -243,7 +272,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
 
           <button
             type="submit"
-            className="w-full bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="w-full bg-[#0b1c30] hover:bg-[#132c4a] text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#006948]"
           >
             {isLogin ? "Log In" : "Sign Up"}
           </button>
@@ -256,7 +285,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                   setFeedback(null);
                   onSwitchMode("signup");
                 }}
-                className="text-sm font-medium text-blue-800 hover:text-blue-900 hover:underline cursor-pointer"
+                className="text-sm font-medium text-[#006948] hover:text-[#00855d] hover:underline cursor-pointer"
               >
                 Don&apos;t have an account? Sign Up for WealthWise
               </button>
@@ -267,7 +296,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                   setFeedback(null);
                   onSwitchMode("login");
                 }}
-                className="text-sm font-medium text-blue-800 hover:text-blue-900 hover:underline cursor-pointer"
+                className="text-sm font-medium text-[#006948] hover:text-[#00855d] hover:underline cursor-pointer"
               >
                 Have an account? Login for WealthWise
               </button>

@@ -1,3 +1,5 @@
+import { convertAmount, CURRENCIES } from "./currency";
+
 function escapeCsvCell(value) {
   const str = String(value ?? "");
   if (str.includes(",") || str.includes('"') || str.includes("\n")) {
@@ -16,8 +18,13 @@ function formatMonthName(monthKey) {
 export function exportExpensesAndAnalyticsCSV(
   expenses = [],
   budgets = [],
-  selectedMonth = ""
+  selectedMonth = "",
+  currencyCode = "USD"
 ) {
+  const decimals = currencyCode === "JPY" ? 0 : 2;
+  const formatVal = (usd) => convertAmount(usd, currencyCode).toFixed(decimals);
+  const currencyName = CURRENCIES[currencyCode]?.code || "USD";
+
   const totalSpent = expenses.reduce(
     (sum, item) => sum + (parseFloat(item.amount) || 0),
     0
@@ -52,18 +59,19 @@ export function exportExpensesAndAnalyticsCSV(
 
   const lines = [];
 
-  // Summary header
   lines.push("WealthWise Expense History & Analytics Report");
   lines.push(`Generated At,${escapeCsvCell(new Date().toISOString())}`);
-  lines.push(`Total Expenses,${totalSpent.toFixed(2)}`);
+  lines.push(`Currency,${currencyName}`);
+  lines.push(`Total Expenses (${currencyName}),${formatVal(totalSpent)}`);
   if (selectedMonth) {
-    lines.push(`Selected Budget Month,${escapeCsvCell(formatMonthName(selectedMonth))}`);
+    lines.push(
+      `Selected Budget Month,${escapeCsvCell(formatMonthName(selectedMonth))}`
+    );
   }
   lines.push("");
 
-  // Section 1: Expense History
   lines.push("EXPENSE HISTORY");
-  lines.push("Date,Category,Note,Amount");
+  lines.push(`Date,Category,Note,Amount (${currencyName})`);
   const sortedExpenses = [...expenses].sort((a, b) =>
     (b.date || "").localeCompare(a.date || "")
   );
@@ -73,16 +81,15 @@ export function exportExpensesAndAnalyticsCSV(
         escapeCsvCell(item.date || ""),
         escapeCsvCell(item.category || ""),
         escapeCsvCell(item.note || item.description || ""),
-        (parseFloat(item.amount) || 0).toFixed(2),
+        formatVal(parseFloat(item.amount) || 0),
       ].join(",")
     );
   });
   lines.push("");
 
-  // Section 2: Category Analytics & Budget Utilization
   lines.push("CATEGORY ANALYTICS");
   lines.push(
-    "Category,Total Spent,Share (%),Monthly Budget Limit,Selected Month Spent,Budget Used (%)"
+    `Category,Total Spent (${currencyName}),Share (%),Monthly Budget Limit (${currencyName}),Selected Month Spent (${currencyName}),Budget Used (%)`
   );
   Array.from(categoryTotals.entries())
     .sort((a, b) => b[1] - a[1])
@@ -95,24 +102,23 @@ export function exportExpensesAndAnalyticsCSV(
       lines.push(
         [
           escapeCsvCell(category),
-          sum.toFixed(2),
+          formatVal(sum),
           `${share}%`,
-          limit !== undefined ? limit.toFixed(2) : "Not set",
-          monthSpend.toFixed(2),
+          limit !== undefined ? formatVal(limit) : "Not set",
+          formatVal(monthSpend),
           usedPct === "N/A" ? "N/A" : `${usedPct}%`,
         ].join(",")
       );
     });
   lines.push("");
 
-  // Section 3: Monthly Trends
   lines.push("MONTHLY SPENDING TRENDS");
-  lines.push("Month,Total Spent");
+  lines.push(`Month,Total Spent (${currencyName})`);
   Array.from(monthTotals.entries())
     .sort((a, b) => a[0].localeCompare(b[0]))
     .forEach(([monthKey, sum]) => {
       lines.push(
-        [escapeCsvCell(formatMonthName(monthKey)), sum.toFixed(2)].join(",")
+        [escapeCsvCell(formatMonthName(monthKey)), formatVal(sum)].join(",")
       );
     });
 

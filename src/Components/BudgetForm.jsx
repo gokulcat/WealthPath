@@ -1,5 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { Plus, CheckCircle2, Wallet, Pencil, Trash2 } from "lucide-react";
+import {
+  CURRENCIES,
+  STREAMS,
+  convertAmount,
+  formatCurrency,
+  getCategoryStream,
+  toUSD,
+} from "../utils/currency";
 
 const CATEGORY_SUGGESTIONS = [
   "Food",
@@ -23,13 +31,17 @@ function BudgetForm({
   expenses = [],
   onSaveBudget,
   onDeleteBudget,
+  currentCurrency = "USD",
 }) {
   const [localBudgets, setLocalBudgets] = useState([]);
   const budgets = propBudgets !== undefined ? propBudgets : localBudgets;
 
   const [category, setCategory] = useState("");
+  const [stream, setStream] = useState("Essential Needs");
   const [budgetAmount, setBudgetAmount] = useState("");
   const [feedback, setFeedback] = useState("");
+
+  const currencySymbol = CURRENCIES[currentCurrency]?.symbol || "$";
 
   const availableMonths = useMemo(() => {
     const months = new Set(
@@ -62,13 +74,19 @@ function BudgetForm({
   const handleSubmit = (event) => {
     event.preventDefault();
     const trimmedCategory = category.trim();
-    const numericAmount = parseFloat(budgetAmount);
-    if (!trimmedCategory || Number.isNaN(numericAmount) || numericAmount <= 0) {
+    const numericInput = parseFloat(budgetAmount);
+    if (!trimmedCategory || Number.isNaN(numericInput) || numericInput <= 0) {
       return;
     }
 
+    const amountUSD = Number(toUSD(numericInput, currentCurrency).toFixed(2));
+
     if (onSaveBudget) {
-      onSaveBudget({ category: trimmedCategory, budgetAmount: numericAmount });
+      onSaveBudget({
+        category: trimmedCategory,
+        budgetAmount: amountUSD,
+        stream,
+      });
     } else {
       setLocalBudgets((prev) => {
         const idx = prev.findIndex(
@@ -76,21 +94,38 @@ function BudgetForm({
         );
         if (idx >= 0) {
           const next = [...prev];
-          next[idx] = { category: trimmedCategory, budgetAmount: numericAmount };
+          next[idx] = {
+            category: trimmedCategory,
+            budgetAmount: amountUSD,
+            stream,
+          };
           return next;
         }
-        return [...prev, { category: trimmedCategory, budgetAmount: numericAmount }];
+        return [
+          ...prev,
+          { category: trimmedCategory, budgetAmount: amountUSD, stream },
+        ];
       });
     }
 
     setCategory("");
+    setStream("Essential Needs");
     setBudgetAmount("");
     setFeedback(`Monthly budget for ${trimmedCategory} saved!`);
   };
 
   const handleEdit = (budget) => {
     setCategory(budget.category);
-    setBudgetAmount(String(budget.budgetAmount));
+    setStream(getCategoryStream(budget.category, budget.stream));
+    const converted = convertAmount(
+      parseFloat(budget.budgetAmount) || 0,
+      currentCurrency
+    );
+    setBudgetAmount(
+      currentCurrency === "JPY"
+        ? String(Math.round(converted))
+        : converted.toFixed(2)
+    );
     setFeedback("");
   };
 
@@ -105,27 +140,27 @@ function BudgetForm({
     setFeedback(`Removed budget limit for ${cat}.`);
   };
 
-  const totalBudget = budgets.reduce(
+  const totalBudgetUSD = budgets.reduce(
     (sum, item) => sum + (parseFloat(item.budgetAmount) || 0),
     0
   );
 
-  const totalSpentInBudgetedCategories = budgets.reduce((sum, item) => {
+  const totalSpentInBudgetedCategoriesUSD = budgets.reduce((sum, item) => {
     const key = item.category.trim().toLowerCase();
     return sum + (monthlySpendByCategory.get(key) || 0);
   }, 0);
 
   return (
-    <div className="flex-1 bg-slate-50 py-8 sm:py-10">
+    <div className="flex-1 bg-[#f8f9ff] py-8 sm:py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0b1c30]">
               Monthly Budgets
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Define monthly spending limits by category and track progress
-              against actual expenses
+              Define monthly spending limits by category and stream in{" "}
+              {currentCurrency}
             </p>
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -139,7 +174,7 @@ function BudgetForm({
               id="budget-month-select"
               value={activeMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 text-sm font-medium text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="px-3 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948]"
             >
               {availableMonths.map((monthKey) => (
                 <option key={monthKey} value={monthKey}>
@@ -153,7 +188,7 @@ function BudgetForm({
         {feedback && (
           <div
             role="status"
-            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"
+            className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium bg-emerald-50 text-[#006948] border border-emerald-200"
           >
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>{feedback}</span>
@@ -163,7 +198,7 @@ function BudgetForm({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Form Panel */}
           <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-slate-900 mb-1">
+            <h2 className="text-lg font-semibold text-[#0b1c30] mb-1">
               Set Category Limit
             </h2>
             <p className="text-xs text-slate-500 mb-4">
@@ -173,7 +208,7 @@ function BudgetForm({
               <div>
                 <label
                   htmlFor="budget-category"
-                  className="block text-sm font-medium text-slate-700"
+                  className="block text-sm font-medium text-[#0b1c30]"
                 >
                   Category
                 </label>
@@ -182,9 +217,12 @@ function BudgetForm({
                   type="text"
                   list="budget-category-suggestions"
                   value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setStream(getCategoryStream(e.target.value));
+                  }}
                   placeholder="e.g. Food, Utilities, Transport"
-                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-[#0b1c30] bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948]"
                   required
                 />
                 <datalist id="budget-category-suggestions">
@@ -196,27 +234,48 @@ function BudgetForm({
 
               <div>
                 <label
-                  htmlFor="budget-amount"
-                  className="block text-sm font-medium text-slate-700"
+                  htmlFor="budget-stream"
+                  className="block text-sm font-medium text-[#0b1c30]"
                 >
-                  Monthly Limit ($)
+                  Allocation Stream
+                </label>
+                <select
+                  id="budget-stream"
+                  value={stream}
+                  onChange={(e) => setStream(e.target.value)}
+                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-[#0b1c30] bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948]"
+                >
+                  {STREAMS.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="budget-amount"
+                  className="block text-sm font-medium text-[#0b1c30]"
+                >
+                  Monthly Limit ({currencySymbol} {currentCurrency})
                 </label>
                 <input
                   id="budget-amount"
                   type="number"
-                  step="0.01"
+                  step={currentCurrency === "JPY" ? "1" : "0.01"}
                   min="1"
                   value={budgetAmount}
                   onChange={(e) => setBudgetAmount(e.target.value)}
                   placeholder="0.00"
-                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
+                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-[#0b1c30] font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948]"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-colors duration-150 cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-[#006948] hover:bg-[#00855d] text-white text-sm font-semibold rounded-lg transition-colors duration-150 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Save Monthly Budget</span>
@@ -228,7 +287,7 @@ function BudgetForm({
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900">
+                <h2 className="text-lg font-semibold text-[#0b1c30]">
                   Category Budget Progress
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -238,10 +297,13 @@ function BudgetForm({
               </div>
               <div className="text-left sm:text-right">
                 <p className="text-xs text-slate-500">Total Spent vs Limit</p>
-                <p className="text-sm font-semibold font-mono tabular-nums text-slate-900">
-                  ${totalSpentInBudgetedCategories.toFixed(2)}{" "}
+                <p className="text-sm font-semibold font-mono tabular-nums text-[#0b1c30]">
+                  {formatCurrency(
+                    totalSpentInBudgetedCategoriesUSD,
+                    currentCurrency
+                  )}{" "}
                   <span className="text-slate-400 font-normal">
-                    / ${totalBudget.toFixed(2)}
+                    / {formatCurrency(totalBudgetUSD, currentCurrency)}
                   </span>
                 </p>
               </div>
@@ -250,14 +312,15 @@ function BudgetForm({
             {budgets.length > 0 ? (
               <div className="divide-y divide-slate-200">
                 {budgets.map((budget) => {
-                  const limit = parseFloat(budget.budgetAmount) || 0;
-                  const spent =
+                  const limitUSD = parseFloat(budget.budgetAmount) || 0;
+                  const spentUSD =
                     monthlySpendByCategory.get(
                       budget.category.trim().toLowerCase()
                     ) || 0;
-                  const pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+                  const pct =
+                    limitUSD > 0 ? Math.round((spentUSD / limitUSD) * 100) : 0;
                   const barWidth = Math.min(pct, 100);
-                  const remaining = limit - spent;
+                  const remainingUSD = limitUSD - spentUSD;
 
                   const status =
                     pct >= 100
@@ -274,19 +337,22 @@ function BudgetForm({
                         }
                       : {
                           label: "On track",
-                          textClass: "text-emerald-700",
-                          barClass: "bg-emerald-600",
+                          textClass: "text-[#006948]",
+                          barClass: "bg-[#006948]",
                         };
 
                   return (
                     <div
                       key={budget.category}
-                      className="px-6 py-4 hover:bg-slate-50/70 transition-colors"
+                      className="px-6 py-4 hover:bg-[#eff4ff]/40 transition-colors"
                     >
                       <div className="flex items-center justify-between gap-4 mb-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="text-sm font-semibold text-slate-900 truncate">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <span className="text-sm font-semibold text-[#0b1c30] truncate">
                             {budget.category}
+                          </span>
+                          <span className="text-xs text-slate-400">
+                            · {getCategoryStream(budget.category, budget.stream)}
                           </span>
                           <span
                             className={`text-xs font-medium ${status.textClass}`}
@@ -296,11 +362,16 @@ function BudgetForm({
                         </div>
 
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-mono tabular-nums text-slate-900 font-semibold">
-                            ${spent.toFixed(0)}
+                          <span className="text-sm font-mono tabular-nums text-[#0b1c30] font-semibold">
+                            {formatCurrency(spentUSD, currentCurrency, {
+                              showCents: false,
+                            })}
                             <span className="text-slate-400 font-normal">
                               {" "}
-                              / ${limit.toFixed(0)}
+                              /{" "}
+                              {formatCurrency(limitUSD, currentCurrency, {
+                                showCents: false,
+                              })}
                             </span>
                           </span>
                           <div className="flex items-center gap-1">
@@ -308,7 +379,7 @@ function BudgetForm({
                               type="button"
                               onClick={() => handleEdit(budget)}
                               aria-label={`Edit ${budget.category} budget`}
-                              className="p-1.5 rounded-md text-slate-400 hover:text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-[#006948] hover:bg-[#eff4ff] transition-colors cursor-pointer"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -341,9 +412,15 @@ function BudgetForm({
                       <div className="mt-1.5 flex items-center justify-between text-xs text-slate-500">
                         <span className="font-mono tabular-nums">{pct}% used</span>
                         <span className="font-mono tabular-nums">
-                          {remaining >= 0
-                            ? `$${remaining.toFixed(2)} remaining`
-                            : `$${Math.abs(remaining).toFixed(2)} over limit`}
+                          {remainingUSD >= 0
+                            ? `${formatCurrency(
+                                remainingUSD,
+                                currentCurrency
+                              )} remaining`
+                            : `${formatCurrency(
+                                Math.abs(remainingUSD),
+                                currentCurrency
+                              )} over limit`}
                         </span>
                       </div>
                     </div>
@@ -353,7 +430,7 @@ function BudgetForm({
             ) : (
               <div className="px-6 py-16 text-center">
                 <Wallet className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-medium text-slate-700">
+                <p className="text-sm font-medium text-[#0b1c30]">
                   No budgets added yet.
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
