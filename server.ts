@@ -190,9 +190,59 @@ function buildFinancialSnapshot(body: FinancialInsightsRequestBody) {
   };
 }
 
+const FALLBACK_FX_RATES: Record<string, number> = {
+  USD: 1.0,
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 152.4,
+  CAD: 1.39,
+  AUD: 1.52,
+  INR: 84.1,
+  CHF: 0.88,
+};
+
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: "1mb" }));
+
+  app.get("/api/fx-rates", async (_req: Request, res: Response) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    try {
+      const upstream = await fetch("https://open.er-api.com/v6/latest/USD", {
+        signal: controller.signal,
+      });
+      if (!upstream.ok) {
+        throw new Error(`FX upstream responded with ${upstream.status}`);
+      }
+      const data = (await upstream.json()) as {
+        rates?: Record<string, number>;
+        time_last_update_utc?: string;
+      };
+      const rates: Record<string, number> = { USD: 1.0 };
+      for (const code of Object.keys(FALLBACK_FX_RATES)) {
+        if (code === "USD") continue;
+        const val = Number(data?.rates?.[code]);
+        rates[code] =
+          Number.isFinite(val) && val > 0
+            ? Number(val.toFixed(4))
+            : FALLBACK_FX_RATES[code];
+      }
+      return res.json({
+        source: "live",
+        updatedAt: data?.time_last_update_utc || new Date().toISOString(),
+        rates,
+      });
+    } catch {
+      return res.json({
+        source: "fallback",
+        updatedAt: new Date().toISOString(),
+        rates: FALLBACK_FX_RATES,
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  });
 
   app.post("/api/financial-insights", async (req: Request, res: Response) => {
     try {

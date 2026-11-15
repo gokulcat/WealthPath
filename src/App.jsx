@@ -165,6 +165,7 @@ function AppContent() {
 
   const [authModalMode, setAuthModalMode] = useState(null);
   const [fxModalOpen, setFxModalOpen] = useState(false);
+  const [fxVersion, setFxVersion] = useState(0);
   const [budgetToasts, setBudgetToasts] = useState([]);
   const [activeAlertModal, setActiveAlertModal] = useState(null);
   const [readAlertIds, setReadAlertIds] = useState([]);
@@ -641,6 +642,8 @@ function AppContent() {
                   incomeConfig={incomeConfig}
                   onAddExpense={handleAddExpense}
                   currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
+                  onOpenFXModal={() => setFxModalOpen(true)}
                   alertThreshold={budgetAlertThreshold}
                 />
               ) : (
@@ -697,6 +700,7 @@ function AppContent() {
                   onUpdateExpense={handleUpdateExpense}
                   onDeleteExpense={handleDeleteExpense}
                   currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
                   alertThreshold={budgetAlertThreshold}
                 />
               ) : (
@@ -714,6 +718,7 @@ function AppContent() {
                   onSaveBudget={handleSaveBudget}
                   onDeleteBudget={handleDeleteBudget}
                   currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
                   incomeConfig={incomeConfig}
                   apyRate={settings.apyRate}
                 />
@@ -797,6 +802,7 @@ function AppContent() {
         onClose={() => setFxModalOpen(false)}
         baseCurrency={currentCurrency}
         onSelectBaseCurrency={setCurrentCurrency}
+        onRatesUpdated={() => setFxVersion((v) => v + 1)}
       />
 
       {isAuthenticated && (

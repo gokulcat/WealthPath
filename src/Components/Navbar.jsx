@@ -197,9 +197,12 @@ const Navbar = ({
                 </button>
 
                 {showCurrencyMenu && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50">
-                    <div className="px-3 py-1.5 text-[11px] font-semibold text-slate-500 border-b border-slate-100">
-                      Workspace Currency
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50">
+                    <div className="px-3 py-1.5 flex items-center justify-between text-[11px] font-semibold text-slate-500 border-b border-slate-100">
+                      <span>Global Base Currency</span>
+                      <span className="font-mono text-[10px] text-slate-400">
+                        per 1 USD
+                      </span>
                     </div>
                     {Object.values(CURRENCIES).map((c) => (
                       <button
@@ -215,17 +218,22 @@ const Navbar = ({
                             : "text-[#0b1c30]"
                         }`}
                       >
-                        <span className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-[#eff4ff] flex items-center justify-center font-bold text-[11px]">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <span className="w-5 h-5 rounded-md bg-[#eff4ff] flex items-center justify-center font-bold text-[11px] shrink-0">
                             {c.symbol}
                           </span>
-                          <span>
+                          <span className="truncate">
                             {c.code} · {c.name}
                           </span>
                         </span>
-                        {currentCurrency === c.code && (
-                          <Check className="w-3.5 h-3.5 text-[#006948]" />
-                        )}
+                        <span className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-mono tabular-nums text-[10px] text-slate-400">
+                            {c.rateAgainstUSD}
+                          </span>
+                          {currentCurrency === c.code && (
+                            <Check className="w-3.5 h-3.5 text-[#006948]" />
+                          )}
+                        </span>
                       </button>
                     ))}
                     {onOpenFXModal && (
@@ -239,7 +247,7 @@ const Navbar = ({
                           className="w-full px-2 py-1.5 rounded-lg text-xs font-semibold text-[#006948] hover:bg-[#eff4ff] flex items-center gap-1.5 cursor-pointer"
                         >
                           <ArrowLeftRight className="w-3.5 h-3.5" />
-                          <span>FX Spot Matrix &amp; Routes</span>
+                          <span>Sync Live FX &amp; Edit Rates</span>
                         </button>
                       </div>
                     )}
@@ -694,6 +702,30 @@ const Navbar = ({
               >
                 Settings
               </Link>
+              <div className="px-3 py-2 border-t border-slate-100 mt-1 pt-2.5">
+                <p className="text-[11px] font-semibold text-slate-500 mb-2">
+                  Base Currency ({currentCurrency})
+                </p>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {Object.values(CURRENCIES).map((c) => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => {
+                        onCurrencyChange && onCurrencyChange(c.code);
+                        setMobileOpen(false);
+                      }}
+                      className={`py-1.5 rounded-md text-xs font-bold cursor-pointer ${
+                        currentCurrency === c.code
+                          ? "bg-[#006948] text-white"
+                          : "bg-[#eff4ff] text-[#0b1c30]"
+                      }`}
+                    >
+                      {c.symbol} {c.code}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={onLogoutClick}

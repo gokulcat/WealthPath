@@ -1,21 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { X, ArrowLeftRight } from "lucide-react";
-import { CURRENCIES } from "../utils/currency";
+import { X, ArrowLeftRight, RefreshCw, RotateCcw } from "lucide-react";
+import {
+  CURRENCIES,
+  setCustomExchangeRates,
+  resetExchangeRates,
+} from "../utils/currency";
 
 function FXRoutesModal({
   isOpen,
   onClose,
   baseCurrency,
   onSelectBaseCurrency,
+  onRatesUpdated,
   onSavePreferences,
 }) {
   const [autoLockDuration, setAutoLockDuration] = useState("24h");
   const [targetHedgePair, setTargetHedgePair] = useState("USD_JPY");
   const [dualCurrencySweepEnabled, setDualCurrencySweepEnabled] =
     useState(true);
+  const [draftRates, setDraftRates] = useState({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
+    const initial = {};
+    Object.entries(CURRENCIES).forEach(([code, info]) => {
+      initial[code] = String(info.rateAgainstUSD);
+    });
+    setDraftRates(initial);
+    setSyncStatus("");
+
     const handleKeyDown = (event) => {
       if (event.key === "Escape") onClose();
     };
@@ -25,7 +40,59 @@ function FXRoutesModal({
 
   if (!isOpen) return null;
 
+  const handleRateInputChange = (code, value) => {
+    setDraftRates((prev) => ({ ...prev, [code]: value }));
+  };
+
+  const handleSyncLiveRates = async () => {
+    setSyncing(true);
+    setSyncStatus("");
+    try {
+      const res = await fetch("/api/fx-rates");
+      const data = await res.json();
+      if (data?.rates) {
+        setCustomExchangeRates(data.rates);
+        const updatedDraft = {};
+        Object.entries(CURRENCIES).forEach(([code, info]) => {
+          updatedDraft[code] = String(info.rateAgainstUSD);
+        });
+        setDraftRates(updatedDraft);
+        onRatesUpdated && onRatesUpdated();
+        setSyncStatus(
+          data.source === "live"
+            ? "Synced live mid-market FX rates."
+            : "Applied standard reference FX rates."
+        );
+      }
+    } catch {
+      setSyncStatus("Could not reach live FX feed; keeping current rates.");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const handleResetDefaults = () => {
+    resetExchangeRates();
+    const updatedDraft = {};
+    Object.entries(CURRENCIES).forEach(([code, info]) => {
+      updatedDraft[code] = String(info.rateAgainstUSD);
+    });
+    setDraftRates(updatedDraft);
+    onRatesUpdated && onRatesUpdated();
+    setSyncStatus("Restored default FX rates.");
+  };
+
   const handleSave = () => {
+    const numericRates = {};
+    Object.entries(draftRates).forEach(([code, val]) => {
+      const num = parseFloat(val);
+      if (Number.isFinite(num) && num > 0) {
+        numericRates[code] = num;
+      }
+    });
+    setCustomExchangeRates(numericRates);
+    onRatesUpdated && onRatesUpdated();
+
     if (onSavePreferences) {
       onSavePreferences({
         autoLockDuration,
@@ -45,7 +112,7 @@ function FXRoutesModal({
       aria-labelledby="fx-routes-modal-title"
     >
       <div
-        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 flex flex-col gap-5"
+        className="bg-white rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200 flex flex-col gap-5"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -59,10 +126,11 @@ function FXRoutesModal({
                 id="fx-routes-modal-title"
                 className="text-lg font-bold text-[#0b1c30]"
               >
-                Multi-Currency Conversion &amp; FX Matrix
+                Global Currency &amp; FX Rate Matrix
               </h3>
               <p className="text-xs text-slate-500">
-                Switch active workspace display currency across 8 supported rates
+                Switch workspace base currency or sync exchange rates across 8
+                currencies
               </p>
             </div>
           </div>
@@ -76,41 +144,94 @@ function FXRoutesModal({
           </button>
         </div>
 
-        {/* Live FX Rates Grid */}
-        <div className="space-y-2">
+        {/* Sync Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold text-[#0b1c30]">
-            Select Active Workspace Currency (Rate per 1 USD)
+            Select Active Base Currency (Rate per 1 USD)
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {Object.entries(CURRENCIES).map(([code, cur]) => {
-              const active = baseCurrency === code;
-              return (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleSyncLiveRates}
+              disabled={syncing}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-[#eff4ff] text-[#006948] hover:bg-[#dce9ff] disabled:opacity-50 cursor-pointer transition-colors"
+            >
+              <RefreshCw
+                className={`w-3 h-3 ${syncing ? "animate-spin" : ""}`}
+              />
+              <span>{syncing ? "Syncing..." : "Sync Live Rates"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleResetDefaults}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        {syncStatus && (
+          <div className="px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200 text-xs font-medium text-[#006948]">
+            {syncStatus}
+          </div>
+        )}
+
+        {/* Live FX Rates Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {Object.entries(CURRENCIES).map(([code, cur]) => {
+            const active = baseCurrency === code;
+            return (
+              <div
+                key={code}
+                className={`p-2.5 rounded-xl border transition-colors ${
+                  active
+                    ? "border-[#006948] bg-[#006948]/8"
+                    : "border-slate-200 bg-[#eff4ff]/50"
+                }`}
+              >
                 <button
-                  key={code}
                   type="button"
                   onClick={() => onSelectBaseCurrency(code)}
-                  className={`p-2.5 rounded-xl border text-center cursor-pointer transition-colors ${
-                    active
-                      ? "border-[#006948] bg-[#006948]/8 text-[#006948]"
-                      : "border-slate-200 bg-[#eff4ff]/60 hover:bg-[#eff4ff] text-[#0b1c30]"
-                  }`}
+                  className="w-full text-left cursor-pointer"
                 >
-                  <div className="text-xs font-bold flex items-center justify-center gap-1">
-                    <span>{cur.symbol}</span>
-                    <span>{code}</span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-mono tabular-nums mt-0.5">
-                    {code === "USD" ? "Base 1.00" : cur.rateAgainstUSD}
-                  </div>
-                  {active && (
-                    <span className="text-[10px] font-semibold text-[#006948] block mt-0.5">
-                      Active
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs font-bold text-[#0b1c30]">
+                      {cur.symbol} {code}
                     </span>
-                  )}
+                    {active && (
+                      <span className="text-[10px] font-bold text-[#006948]">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                    {cur.name}
+                  </p>
                 </button>
-              );
-            })}
-          </div>
+                <div className="mt-2">
+                  {code === "USD" ? (
+                    <div className="px-2 py-1 text-[11px] font-mono tabular-nums text-slate-500 bg-white/70 border border-slate-200 rounded">
+                      1.0000
+                    </div>
+                  ) : (
+                    <input
+                      type="number"
+                      step="0.0001"
+                      min="0.0001"
+                      aria-label={`${code} rate per 1 USD`}
+                      value={draftRates[code] ?? cur.rateAgainstUSD}
+                      onChange={(e) =>
+                        handleRateInputChange(code, e.target.value)
+                      }
+                      className="w-full px-2 py-1 text-[11px] font-mono tabular-nums text-[#0b1c30] bg-white border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-[#006948]"
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Routing Options */}
@@ -191,7 +312,7 @@ function FXRoutesModal({
             onClick={handleSave}
             className="px-4 py-2 rounded-lg text-xs font-semibold bg-[#006948] text-white hover:bg-[#00855d] cursor-pointer"
           >
-            Save FX Preferences
+            Apply Currency &amp; Rates
           </button>
         </div>
       </div>

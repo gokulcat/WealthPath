@@ -42,6 +42,7 @@ function BudgetForm({
   onSaveBudget,
   onDeleteBudget,
   currentCurrency = "USD",
+  onCurrencyChange,
   incomeConfig,
   apyRate = 4.85,
 }) {
@@ -301,6 +302,21 @@ function BudgetForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            {onCurrencyChange && (
+              <select
+                aria-label="Select base currency"
+                value={currentCurrency}
+                onChange={(e) => onCurrencyChange(e.target.value)}
+                className="px-3 py-2 text-xs font-semibold text-[#0b1c30] bg-[#eff4ff] border border-[#006948]/25 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] cursor-pointer"
+              >
+                {Object.values(CURRENCIES).map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.symbol} {c.code}
+                  </option>
+                ))}
+              </select>
+            )}
+
             <select
               aria-label="Viewing month"
               value={activeMonth}
@@ -527,8 +543,10 @@ function BudgetForm({
                           <span>{row.name}</span>
                           {showOriginalFX && (
                             <span className="block text-[11px] font-mono text-[#006948] mt-0.5">
-                              USD Base: ${row.actual.toFixed(2)} · EUR Eq: €
-                              {convertAmount(row.actual, "EUR").toFixed(2)}
+                              USD Base: {formatCurrency(row.actual, "USD")} ·{" "}
+                              {currentCurrency === "USD"
+                                ? `EUR Eq: ${formatCurrency(row.actual, "EUR")}`
+                                : `Rate: 1 USD = ${CURRENCIES[currentCurrency]?.rateAgainstUSD} ${currentCurrency}`}
                             </span>
                           )}
                         </td>

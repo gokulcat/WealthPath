@@ -28,6 +28,7 @@ function ExpenseForm({
   onUpdateExpense,
   onDeleteExpense,
   currentCurrency = "USD",
+  onCurrencyChange,
   alertThreshold = 80,
 }) {
   const [localExpenses, setLocalExpenses] = useState([]);
@@ -122,25 +123,45 @@ function ExpenseForm({
 
     const decimals = currentCurrency === "JPY" ? 0 : 2;
     const exportRows = expenses.map((item) => ({
+      date: item.date,
       category: item.category,
       stream: getCategoryStream(item.category),
       description: item.note || item.description || "",
-      date: item.date,
       currency: currentCurrency,
       amount: Number(
         convertAmount(parseFloat(item.amount) || 0, currentCurrency).toFixed(
           decimals
         )
       ),
+      baseUSD: Number((parseFloat(item.amount) || 0).toFixed(2)),
     }));
 
-    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const budgetRows = budgets.map((b) => ({
+      category: b.category,
+      stream: getCategoryStream(b.category, b.stream),
+      currency: currentCurrency,
+      monthlyLimit: Number(
+        convertAmount(parseFloat(b.budgetAmount) || 0, currentCurrency).toFixed(
+          decimals
+        )
+      ),
+      baseUSD: Number((parseFloat(b.budgetAmount) || 0).toFixed(2)),
+    }));
+
     const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
     XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses");
-    XLSX.writeFile(workbook, "expenses.xlsx");
+    if (budgetRows.length > 0) {
+      const budgetSheet = XLSX.utils.json_to_sheet(budgetRows);
+      XLSX.utils.book_append_sheet(workbook, budgetSheet, "Budgets");
+    }
+    XLSX.writeFile(
+      workbook,
+      `wealthwise-expenses-${currentCurrency.toLowerCase()}.xlsx`
+    );
     setFeedback({
       type: "success",
-      text: "Expenses exported to Excel successfully!",
+      text: `Expenses exported to Excel (${currentCurrency}) successfully!`,
     });
   };
 
@@ -202,6 +223,20 @@ function ExpenseForm({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+            {onCurrencyChange && (
+              <select
+                aria-label="Select base currency"
+                value={currentCurrency}
+                onChange={(e) => onCurrencyChange(e.target.value)}
+                className="px-3 py-2 text-xs font-semibold text-[#0b1c30] bg-[#eff4ff] border border-[#006948]/25 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] cursor-pointer"
+              >
+                {Object.values(CURRENCIES).map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.symbol} {c.code}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               type="button"
               onClick={() => {
