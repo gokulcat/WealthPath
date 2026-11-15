@@ -12,6 +12,7 @@ import GoalForm from "./Components/GoalForm";
 import BudgetForm from "./Components/BudgetForm";
 import Dashboard from "./Components/Dashboard";
 import SalaryPlanner from "./Components/SalaryPlanner";
+import Analytics from "./Components/Analytics";
 import Settings from "./Components/Settings";
 import Navbar from "./Components/Navbar";
 import WealthWise from "./Components/WealthWise";
@@ -640,9 +641,7 @@ function AppContent() {
                   incomeConfig={incomeConfig}
                   onAddExpense={handleAddExpense}
                   currentCurrency={currentCurrency}
-                  apyRate={settings.apyRate}
                   alertThreshold={budgetAlertThreshold}
-                  onOpenFXModal={() => setFxModalOpen(true)}
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -655,12 +654,29 @@ function AppContent() {
               isAuthenticated ? (
                 <SalaryPlanner
                   currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
                   onOpenFXModal={() => setFxModalOpen(true)}
                   incomeConfig={incomeConfig}
                   onUpdateIncomeConfig={setIncomeConfig}
-                  expenses={expenses}
-                  budgets={budgets}
-                  onSaveBudget={handleSaveBudget}
+                  onApplySplitToBudgets={handleApplySplitToBudgets}
+                  settings={settings}
+                  onUpdateSettings={handleUpdateSettings}
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/salary"
+            element={
+              isAuthenticated ? (
+                <SalaryPlanner
+                  currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
+                  onOpenFXModal={() => setFxModalOpen(true)}
+                  incomeConfig={incomeConfig}
+                  onUpdateIncomeConfig={setIncomeConfig}
                   onApplySplitToBudgets={handleApplySplitToBudgets}
                   settings={settings}
                   onUpdateSettings={handleUpdateSettings}
@@ -698,6 +714,8 @@ function AppContent() {
                   onSaveBudget={handleSaveBudget}
                   onDeleteBudget={handleDeleteBudget}
                   currentCurrency={currentCurrency}
+                  incomeConfig={incomeConfig}
+                  apyRate={settings.apyRate}
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -714,9 +732,29 @@ function AppContent() {
                   onContributeGoal={handleContributeGoal}
                   onDeleteGoal={handleDeleteGoal}
                   currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
                   roundUpMultiplier={settings.roundUpMultiplier}
                   autoFundingPaused={settings.autoFundingPaused}
                   onUpdateSettings={handleUpdateSettings}
+                />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              isAuthenticated ? (
+                <Analytics
+                  expenses={expenses}
+                  budgets={budgets}
+                  goals={goals}
+                  incomeConfig={incomeConfig}
+                  currentCurrency={currentCurrency}
+                  onCurrencyChange={setCurrentCurrency}
+                  apyRate={settings.apyRate}
+                  onOpenFXModal={() => setFxModalOpen(true)}
                 />
               ) : (
                 <Navigate to="/login" replace />

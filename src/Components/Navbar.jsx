@@ -8,7 +8,6 @@ import {
   X,
   LogOut,
   ChevronDown,
-  Settings as SettingsIcon,
   ArrowLeftRight,
   Bell,
   AlertTriangle,
@@ -144,13 +143,18 @@ const Navbar = ({
         {isLoggedIn ? (
           <nav
             aria-label="Main navigation"
-            className="hidden lg:flex items-center gap-6"
+            className="hidden lg:flex items-center gap-4 xl:gap-6"
           >
             <Link to="/dashboard" className={navLinkClass("/dashboard")}>
               Dashboard
             </Link>
-            <Link to="/planner" className={navLinkClass("/planner")}>
-              Salary &amp; Plan
+            <Link
+              to="/planner"
+              className={navLinkClass(
+                location.pathname === "/salary" ? "/salary" : "/planner"
+              )}
+            >
+              Salary
             </Link>
             <Link to="/expenses" className={navLinkClass("/expenses")}>
               Expenses
@@ -160,6 +164,12 @@ const Navbar = ({
             </Link>
             <Link to="/goals" className={navLinkClass("/goals")}>
               Goals
+            </Link>
+            <Link to="/analytics" className={navLinkClass("/analytics")}>
+              Analytics
+            </Link>
+            <Link to="/settings" className={navLinkClass("/settings")}>
+              Settings
             </Link>
           </nav>
         ) : (
@@ -404,19 +414,6 @@ const Navbar = ({
                   </div>
                 )}
               </div>
-
-              <Link
-                to="/settings"
-                aria-label="Workspace settings"
-                title="Workspace settings"
-                className={`inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors ${
-                  location.pathname === "/settings"
-                    ? "bg-[#006948] text-white border-[#006948]"
-                    : "bg-white text-slate-600 border-slate-200 hover:bg-[#eff4ff] hover:text-[#0b1c30]"
-                }`}
-              >
-                <SettingsIcon className="w-4 h-4" />
-              </Link>
 
               <button
                 type="button"
@@ -665,7 +662,7 @@ const Navbar = ({
                 to="/planner"
                 className="block px-3 py-2.5 rounded-lg text-sm font-medium text-[#0b1c30] hover:bg-[#eff4ff]"
               >
-                Salary &amp; Plan
+                Salary
               </Link>
               <Link
                 to="/expenses"
@@ -684,6 +681,12 @@ const Navbar = ({
                 className="block px-3 py-2.5 rounded-lg text-sm font-medium text-[#0b1c30] hover:bg-[#eff4ff]"
               >
                 Goals
+              </Link>
+              <Link
+                to="/analytics"
+                className="block px-3 py-2.5 rounded-lg text-sm font-medium text-[#0b1c30] hover:bg-[#eff4ff]"
+              >
+                Analytics
               </Link>
               <Link
                 to="/settings"

@@ -62,6 +62,7 @@ function GoalForm({
   onContributeGoal,
   onDeleteGoal,
   currentCurrency = "USD",
+  onCurrencyChange,
   roundUpMultiplier = 1,
   autoFundingPaused = false,
   onUpdateSettings,
@@ -204,6 +205,25 @@ function GoalForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
+            {onCurrencyChange && (
+              <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200">
+                {Object.keys(CURRENCIES).map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => onCurrencyChange(code)}
+                    className={`px-2 py-1 text-[11px] font-bold rounded-md transition-colors cursor-pointer ${
+                      currentCurrency === code
+                        ? "bg-[#006948] text-white"
+                        : "text-slate-600 hover:text-[#0b1c30]"
+                    }`}
+                  >
+                    {code}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => {

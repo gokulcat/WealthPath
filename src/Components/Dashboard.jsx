@@ -7,8 +7,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,18 +20,11 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   TrendingUp,
-  ArrowLeftRight,
-  Sparkles,
-  Globe2,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
+import AIFinancialInsightsCard from "./AIFinancialInsightsCard";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
-import {
-  CURRENCIES,
-  convertAmount,
-  formatCurrency,
-  getCategoryStream,
-} from "../utils/currency";
+import { convertAmount, formatCurrency } from "../utils/currency";
 
 const CATEGORY_COLORS = {
   Food: "#006948",
@@ -149,30 +140,6 @@ function DonutTooltip({ active, payload, totalExpensesUSD, currentCurrency }) {
   );
 }
 
-function ProjectionTooltip({ active, payload, label, currentCurrency }) {
-  if (!active || !payload || payload.length === 0) return null;
-  const projected = payload.find((p) => p.dataKey === "projected")?.value || 0;
-  const baseline = payload.find((p) => p.dataKey === "baseline")?.value || 0;
-
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-lg p-3 text-xs min-w-[180px]">
-      <p className="font-semibold text-[#0b1c30] mb-1.5">{label}</p>
-      <div className="flex justify-between gap-4 text-[#006948] font-semibold">
-        <span>With APY Growth</span>
-        <span className="font-mono tabular-nums">
-          {formatCurrency(projected, currentCurrency, { showCents: false })}
-        </span>
-      </div>
-      <div className="flex justify-between gap-4 text-slate-500 mt-1">
-        <span>Principal Only</span>
-        <span className="font-mono tabular-nums">
-          {formatCurrency(baseline, currentCurrency, { showCents: false })}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 const Dashboard = ({
   expenses = [],
   budgets = [],
@@ -180,14 +147,11 @@ const Dashboard = ({
   incomeConfig,
   onAddExpense,
   currentCurrency = "USD",
-  apyRate = 4.85,
   alertThreshold = 80,
-  onOpenFXModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [chartMode, setChartMode] = useState("stacked");
-  const [analyticsView, setAnalyticsView] = useState("spending");
-  const [horizon, setHorizon] = useState("1y");
+  const [isDonutHovered, setIsDonutHovered] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
   const monthlyIncomeUSD = incomeConfig?.monthlyIncomeUSD || 6500;
@@ -273,113 +237,7 @@ const Dashboard = ({
     return map;
   }, [expenses, activeBudgetMonth]);
 
-  const totalVaultSavedUSD = goals.reduce(
-    (sum, g) => sum + (parseFloat(g.saved_amount) || 0),
-    0
-  );
-  const monthlyVaultAutoUSD = goals.reduce(
-    (sum, g) => sum + (parseFloat(g.monthlyAuto) || 0),
-    0
-  );
-
   const latestSurplusUSD = monthlyIncomeUSD - latestMonthSpendUSD;
-  const monthlyContributionUSD = Math.max(
-    monthlyVaultAutoUSD,
-    Math.round(monthlyIncomeUSD * 0.2)
-  );
-
-  const projectionData = useMemo(() => {
-    const monthsCount = horizon === "6m" ? 6 : horizon === "5y" ? 60 : 12;
-    const step = horizon === "5y" ? 6 : 1;
-    const monthlyRate = (apyRate || 4.85) / 100 / 12;
-    const points = [];
-    let balance = totalVaultSavedUSD;
-    let baseline = totalVaultSavedUSD;
-
-    for (let m = 0; m <= monthsCount; m++) {
-      if (m % step === 0 || m === monthsCount) {
-        points.push({
-          label:
-            m === 0
-              ? "Now"
-              : horizon === "5y"
-              ? `Yr ${(m / 12).toFixed(1)}`
-              : `Mo ${m}`,
-          projected: Math.round(balance),
-          baseline: Math.round(baseline),
-        });
-      }
-      balance = balance * (1 + monthlyRate) + monthlyContributionUSD;
-      baseline = baseline + monthlyContributionUSD;
-    }
-    return points;
-  }, [horizon, totalVaultSavedUSD, monthlyContributionUSD, apyRate]);
-
-  const wantsPctTarget = incomeConfig?.split?.wants ?? 30;
-  const wantsCapUSD = (monthlyIncomeUSD * wantsPctTarget) / 100;
-
-  const latestMonthWantsUSD = useMemo(() => {
-    const budgetStreamMap = new Map();
-    budgets.forEach((b) => {
-      budgetStreamMap.set(
-        b.category.trim().toLowerCase(),
-        getCategoryStream(b.category, b.stream)
-      );
-    });
-    let total = 0;
-    expenses.forEach((item) => {
-      if ((item.date || "").slice(0, 7) === activeBudgetMonth) {
-        const key = (item.category || "Other").trim().toLowerCase();
-        const stream = getCategoryStream(item.category, budgetStreamMap.get(key));
-        if (stream === "Lifestyle & Wants") {
-          total += parseFloat(item.amount) || 0;
-        }
-      }
-    });
-    return total;
-  }, [expenses, budgets, activeBudgetMonth]);
-
-  const wantsVarianceUSD = wantsCapUSD - latestMonthWantsUSD;
-  const wantsUsagePct =
-    wantsCapUSD > 0 ? Math.round((latestMonthWantsUSD / wantsCapUSD) * 100) : 0;
-
-  const vaultBenchmarks = useMemo(() => {
-    return goals.map((g) => {
-      const target = parseFloat(g.target_amount) || 0;
-      const saved = parseFloat(g.saved_amount) || 0;
-      const pct = target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0;
-      const statusLabel =
-        pct >= 90 ? "Almost Done" : pct >= 55 ? "Ahead" : "On Track";
-      const statusClass =
-        pct >= 90
-          ? "text-[#006948]"
-          : pct >= 55
-          ? "text-emerald-700"
-          : "text-slate-600";
-      return {
-        ...g,
-        target,
-        saved,
-        pct,
-        statusLabel,
-        statusClass,
-      };
-    });
-  }, [goals]);
-
-  const hedgedVaults = useMemo(
-    () => goals.filter((g) => Boolean(g.foreignCurrency && CURRENCIES[g.foreignCurrency])),
-    [goals]
-  );
-
-  const projectionFinal = projectionData[projectionData.length - 1] || {
-    projected: totalVaultSavedUSD,
-    baseline: totalVaultSavedUSD,
-  };
-  const projectedYieldGainUSD = Math.max(
-    0,
-    projectionFinal.projected - projectionFinal.baseline
-  );
 
   const topCategory = categoryTotals[0] || { category: "None", total: 0 };
 
@@ -447,14 +305,21 @@ const Dashboard = ({
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 hover:bg-[#eff4ff] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0"
             >
               <Wallet className="w-4 h-4 text-[#006948]" />
-              <span>Salary &amp; Plan</span>
+              <span>Salary</span>
+            </Link>
+            <Link
+              to="/analytics"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 hover:bg-[#eff4ff] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0"
+            >
+              <TrendingUp className="w-4 h-4 text-[#006948]" />
+              <span>Analytics</span>
             </Link>
             <Link
               to="/goals"
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 hover:bg-[#eff4ff] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0"
             >
               <Target className="w-4 h-4 text-[#006948]" />
-              <span>Vaults</span>
+              <span>Goals</span>
             </Link>
           </div>
         </div>
@@ -538,164 +403,166 @@ const Dashboard = ({
           </div>
         </div>
 
-        {/* View Switcher: Spending Analytics vs Wealth Projections */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setAnalyticsView("spending")}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                analyticsView === "spending"
-                  ? "bg-[#006948] text-white shadow-xs"
-                  : "text-slate-600 hover:text-[#0b1c30]"
-              }`}
-            >
-              Spending Trends &amp; Categories
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnalyticsView("projections")}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                analyticsView === "projections"
-                  ? "bg-[#006948] text-white shadow-xs"
-                  : "text-slate-600 hover:text-[#0b1c30]"
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Wealth Projections (6m / 1y / 5y)</span>
-            </button>
-          </div>
-        </div>
+        {/* AI Financial Insights */}
+        <AIFinancialInsightsCard
+          expenses={expenses}
+          budgets={budgets}
+          goals={goals}
+          incomeConfig={incomeConfig}
+          currentCurrency={currentCurrency}
+        />
 
-        {analyticsView === "spending" ? (
-          /* Modern Recharts Spending Grid */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 flex flex-col">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#0b1c30]">
-                    Monthly Spending Trends by Category
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Monthly expenditure breakdown in {currentCurrency}
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200 self-start sm:self-auto">
-                  <button
-                    type="button"
-                    onClick={() => setChartMode("stacked")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                      chartMode === "stacked"
-                        ? "bg-[#0b1c30] text-white shadow-xs"
-                        : "text-slate-600 hover:text-[#0b1c30]"
-                    }`}
-                  >
-                    Stacked
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartMode("grouped")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                      chartMode === "grouped"
-                        ? "bg-[#0b1c30] text-white shadow-xs"
-                        : "text-slate-600 hover:text-[#0b1c30]"
-                    }`}
-                  >
-                    Grouped
-                  </button>
-                </div>
+        {/* Modern Recharts Spending Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 flex flex-col">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+              <div>
+                <h2 className="text-lg font-semibold text-[#0b1c30]">
+                  Monthly Spending Trends by Category
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Monthly expenditure breakdown in {currentCurrency}
+                </p>
               </div>
-
-              <div className="h-[310px] w-full">
-                {monthlyCategoryData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={monthlyCategoryData}
-                      margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
-                      barCategoryGap="26%"
-                    >
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        vertical={false}
-                        stroke="#eff4ff"
-                      />
-                      <XAxis
-                        dataKey="month"
-                        tickFormatter={formatShortMonth}
-                        tick={{
-                          fill: "#64748b",
-                          fontSize: 12,
-                          fontWeight: 500,
-                        }}
-                        axisLine={{ stroke: "#e2e8f0" }}
-                        tickLine={false}
-                        dy={6}
-                      />
-                      <YAxis
-                        tickFormatter={(val) =>
-                          formatCurrency(val, currentCurrency, {
-                            showCents: false,
-                            compact: true,
-                          })
-                        }
-                        tick={{ fill: "#64748b", fontSize: 11 }}
-                        axisLine={false}
-                        tickLine={false}
-                        width={58}
-                      />
-                      <Tooltip
-                        content={
-                          <BarChartTooltip currentCurrency={currentCurrency} />
-                        }
-                        cursor={{ fill: "rgba(239, 244, 255, 0.8)" }}
-                      />
-                      <Legend
-                        wrapperStyle={{ fontSize: "12px", paddingTop: "14px" }}
-                        iconType="circle"
-                        iconSize={8}
-                      />
-                      {categoriesList.map((category, index) => (
-                        <Bar
-                          key={category}
-                          dataKey={category}
-                          name={category}
-                          stackId={chartMode === "stacked" ? "spend" : undefined}
-                          fill={getCategoryColor(category, index)}
-                          stroke="#ffffff"
-                          strokeWidth={chartMode === "stacked" ? 1.5 : 0}
-                          radius={
-                            chartMode === "grouped"
-                              ? [5, 5, 0, 0]
-                              : index === categoriesList.length - 1
-                              ? [5, 5, 0, 0]
-                              : [0, 0, 0, 0]
-                          }
-                          maxBarSize={chartMode === "stacked" ? 44 : 22}
-                        />
-                      ))}
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-sm text-slate-500">
-                    Add an expense to visualize monthly category trends.
-                  </div>
-                )}
+              <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setChartMode("stacked")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                    chartMode === "stacked"
+                      ? "bg-[#0b1c30] text-white shadow-xs"
+                      : "text-slate-600 hover:text-[#0b1c30]"
+                  }`}
+                >
+                  Stacked
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChartMode("grouped")}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
+                    chartMode === "grouped"
+                      ? "bg-[#0b1c30] text-white shadow-xs"
+                      : "text-slate-600 hover:text-[#0b1c30]"
+                  }`}
+                >
+                  Grouped
+                </button>
               </div>
             </div>
 
-            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 flex flex-col">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-[#0b1c30]">
-                  Expenses by Category
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Proportional spend across active categories
-                </p>
-              </div>
+            <div className="h-[310px] w-full">
+              {monthlyCategoryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={monthlyCategoryData}
+                    margin={{ top: 8, right: 12, left: 0, bottom: 4 }}
+                    barCategoryGap="26%"
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke="#eff4ff"
+                    />
+                    <XAxis
+                      dataKey="month"
+                      tickFormatter={formatShortMonth}
+                      tick={{
+                        fill: "#64748b",
+                        fontSize: 12,
+                        fontWeight: 500,
+                      }}
+                      axisLine={{ stroke: "#e2e8f0" }}
+                      tickLine={false}
+                      dy={6}
+                    />
+                    <YAxis
+                      tickFormatter={(val) =>
+                        formatCurrency(val, currentCurrency, {
+                          showCents: false,
+                          compact: true,
+                        })
+                      }
+                      tick={{ fill: "#64748b", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={58}
+                    />
+                    <Tooltip
+                      wrapperStyle={{ zIndex: 50, pointerEvents: "none" }}
+                      content={
+                        <BarChartTooltip currentCurrency={currentCurrency} />
+                      }
+                      cursor={{ fill: "rgba(239, 244, 255, 0.8)" }}
+                    />
+                    <Legend
+                      wrapperStyle={{ fontSize: "12px", paddingTop: "14px" }}
+                      iconType="circle"
+                      iconSize={8}
+                    />
+                    {categoriesList.map((category, index) => (
+                      <Bar
+                        key={category}
+                        dataKey={category}
+                        name={category}
+                        stackId={chartMode === "stacked" ? "spend" : undefined}
+                        fill={getCategoryColor(category, index)}
+                        stroke="#ffffff"
+                        strokeWidth={chartMode === "stacked" ? 1.5 : 0}
+                        radius={
+                          chartMode === "grouped"
+                            ? [5, 5, 0, 0]
+                            : index === categoriesList.length - 1
+                            ? [5, 5, 0, 0]
+                            : [0, 0, 0, 0]
+                        }
+                        maxBarSize={chartMode === "stacked" ? 44 : 22}
+                      />
+                    ))}
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-sm text-slate-500">
+                  Add an expense to visualize monthly category trends.
+                </div>
+              )}
+            </div>
+          </div>
 
-              {categoryTotals.length > 0 ? (
-                <div className="flex-1 flex flex-col justify-between gap-4">
-                  <div className="relative h-[220px] w-full">
+          <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 flex flex-col">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-[#0b1c30]">
+                Expenses by Category
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Proportional spend across active categories
+              </p>
+            </div>
+
+            {categoryTotals.length > 0 ? (
+              <div className="flex-1 flex flex-col justify-between gap-4">
+                <div
+                  className="relative h-[220px] w-full"
+                  onMouseLeave={() => setIsDonutHovered(false)}
+                >
+                  <div
+                    className={`pointer-events-none absolute inset-0 z-0 flex flex-col items-center justify-center transition-opacity duration-150 ${
+                      isDonutHovered ? "opacity-0" : "opacity-100"
+                    }`}
+                  >
+                    <span className="text-[11px] font-medium text-slate-500">
+                      Total Spent
+                    </span>
+                    <span className="text-lg font-bold text-[#0b1c30] font-mono tabular-nums">
+                      {formatCurrency(totalExpensesUSD, currentCurrency, {
+                        showCents: false,
+                        compact:
+                          convertAmount(totalExpensesUSD, currentCurrency) >=
+                          100000,
+                      })}
+                    </span>
+                  </div>
+
+                  <div className="relative z-10 w-full h-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -709,12 +576,15 @@ const Dashboard = ({
                           paddingAngle={3}
                           cornerRadius={6}
                           stroke="none"
+                          onMouseEnter={() => setIsDonutHovered(true)}
+                          onMouseLeave={() => setIsDonutHovered(false)}
                         >
                           {categoryTotals.map((entry) => (
                             <Cell key={entry.name} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip
+                          wrapperStyle={{ zIndex: 50, pointerEvents: "none" }}
                           content={
                             <DonutTooltip
                               totalExpensesUSD={totalExpensesUSD}
@@ -724,414 +594,49 @@ const Dashboard = ({
                         />
                       </PieChart>
                     </ResponsiveContainer>
-
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[11px] font-medium text-slate-500">
-                        Total Spent
-                      </span>
-                      <span className="text-lg font-bold text-[#0b1c30] font-mono tabular-nums">
-                        {formatCurrency(totalExpensesUSD, currentCurrency, {
-                          showCents: false,
-                          compact:
-                            convertAmount(totalExpensesUSD, currentCurrency) >=
-                            100000,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-slate-100 border-t border-slate-100 pt-2">
-                    {categoryTotals.map((item) => {
-                      const share =
-                        totalExpensesUSD > 0
-                          ? Math.round((item.total / totalExpensesUSD) * 100)
-                          : 0;
-                      return (
-                        <div
-                          key={item.category}
-                          className="py-2 flex items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span
-                              className="w-2.5 h-2.5 rounded-full shrink-0"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            <span className="font-medium text-[#0b1c30] truncate">
-                              {item.category}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 font-mono tabular-nums shrink-0">
-                            <span className="text-slate-400">{share}%</span>
-                            <span className="font-semibold text-[#0b1c30] w-20 text-right">
-                              {formatCurrency(item.total, currentCurrency, {
-                                showCents: false,
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
-                  No category expenses recorded yet.
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* MintVault Multi-Horizon Wealth Projections & Analytics View */
-          <div className="space-y-6">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold text-[#0b1c30]">
-                    Cumulative Vault &amp; Compounding Projection
-                  </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Starting from{" "}
-                    <span className="font-mono tabular-nums font-semibold text-[#0b1c30]">
-                      {formatCurrency(totalVaultSavedUSD, currentCurrency, {
-                        showCents: false,
-                      })}
-                    </span>{" "}
-                    in vaults +{" "}
-                    <span className="font-mono tabular-nums font-semibold text-[#006948]">
-                      {formatCurrency(monthlyContributionUSD, currentCurrency, {
-                        showCents: false,
-                      })}
-                      /mo
-                    </span>{" "}
-                    at {apyRate}% APY
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200 self-start sm:self-auto">
-                  {[
-                    { id: "6m", label: "6 Months" },
-                    { id: "1y", label: "1 Year" },
-                    { id: "5y", label: "5 Years" },
-                  ].map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setHorizon(opt.id)}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                        horizon === opt.id
-                          ? "bg-[#0b1c30] text-white"
-                          : "text-slate-600 hover:text-[#0b1c30]"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
-                <div className="rounded-lg bg-[#eff4ff]/70 border border-slate-200/80 px-4 py-3">
-                  <p className="text-[11px] font-medium text-slate-500">
-                    Projected Ending Balance
-                  </p>
-                  <p className="mt-1 text-lg font-bold font-mono tabular-nums text-[#0b1c30]">
-                    {formatCurrency(projectionFinal.projected, currentCurrency, {
-                      showCents: false,
-                    })}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-[#eff4ff]/70 border border-slate-200/80 px-4 py-3">
-                  <p className="text-[11px] font-medium text-slate-500">
-                    Principal Deposited
-                  </p>
-                  <p className="mt-1 text-lg font-bold font-mono tabular-nums text-[#0b1c30]">
-                    {formatCurrency(projectionFinal.baseline, currentCurrency, {
-                      showCents: false,
-                    })}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-emerald-50/70 border border-emerald-200/80 px-4 py-3">
-                  <p className="text-[11px] font-medium text-[#006948]">
-                    Compounded Yield ({apyRate}% APY)
-                  </p>
-                  <p className="mt-1 text-lg font-bold font-mono tabular-nums text-[#006948]">
-                    +
-                    {formatCurrency(projectedYieldGainUSD, currentCurrency, {
-                      showCents: false,
-                    })}
-                  </p>
-                </div>
-              </div>
-
-              <div className="h-[300px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={projectionData}
-                    margin={{ top: 10, right: 16, left: 0, bottom: 4 }}
-                  >
-                    <defs>
-                      <linearGradient
-                        id="vaultGrowthFill"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
+                <div className="divide-y divide-slate-100 border-t border-slate-100 pt-2">
+                  {categoryTotals.map((item) => {
+                    const share =
+                      totalExpensesUSD > 0
+                        ? Math.round((item.total / totalExpensesUSD) * 100)
+                        : 0;
+                    return (
+                      <div
+                        key={item.category}
+                        className="py-2 flex items-center justify-between gap-3 text-xs"
                       >
-                        <stop offset="5%" stopColor="#006948" stopOpacity={0.25} />
-                        <stop offset="95%" stopColor="#006948" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#eff4ff"
-                    />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fill: "#64748b", fontSize: 12 }}
-                      axisLine={{ stroke: "#e2e8f0" }}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tickFormatter={(val) =>
-                        formatCurrency(val, currentCurrency, {
-                          showCents: false,
-                          compact: true,
-                        })
-                      }
-                      tick={{ fill: "#64748b", fontSize: 11 }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={62}
-                    />
-                    <Tooltip
-                      content={
-                        <ProjectionTooltip currentCurrency={currentCurrency} />
-                      }
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="baseline"
-                      stroke="#64748b"
-                      strokeDasharray="4 4"
-                      strokeWidth={2}
-                      fill="none"
-                      name="Principal Only"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="projected"
-                      stroke="#006948"
-                      strokeWidth={3}
-                      fill="url(#vaultGrowthFill)"
-                      name="With APY Growth"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* MintVault Analytics Sub-Cards: Vault Velocity Benchmarks & Active FX Hedging */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-bold text-[#0b1c30]">
-                      Vault Velocity Benchmarks
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Real-time funding pace across all active savings vaults
-                    </p>
-                  </div>
-                  <Link
-                    to="/goals"
-                    className="text-xs font-semibold text-[#006948] hover:underline whitespace-nowrap"
-                  >
-                    Open Vaults
-                  </Link>
-                </div>
-
-                <div className="space-y-3.5">
-                  {vaultBenchmarks.slice(0, 5).map((v, idx) => (
-                    <div key={`${v.goal}-${idx}`} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs gap-2">
-                        <span className="font-semibold text-[#0b1c30] truncate">
-                          {v.goal}
-                        </span>
-                        <span className="flex items-center gap-2 font-mono tabular-nums shrink-0">
-                          <span className={`font-semibold ${v.statusClass}`}>
-                            {v.statusLabel}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="font-medium text-[#0b1c30] truncate">
+                            {item.category}
                           </span>
-                          <span aria-hidden="true" className="text-slate-300">
-                            ·
-                          </span>
-                          <span className="font-bold text-[#0b1c30]">
-                            {v.pct}%
-                          </span>
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#006948] rounded-full transition-all duration-300"
-                          style={{ width: `${v.pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Smart Allocation Insight */}
-                <div className="rounded-xl bg-[#0b1c30] text-white p-4 flex items-start gap-3">
-                  <Sparkles className="w-4 h-4 text-[#85f8c4] shrink-0 mt-0.5" />
-                  <div className="text-xs leading-relaxed">
-                    <p className="font-semibold text-[#85f8c4]">
-                      Smart Allocation Insight
-                    </p>
-                    <p className="mt-1 text-slate-200">
-                      {wantsVarianceUSD >= 0 ? (
-                        <>
-                          Your Lifestyle &amp; Wants spend in{" "}
-                          {formatMonthLabel(activeBudgetMonth)} is{" "}
-                          <span className="font-mono tabular-nums font-semibold text-white">
-                            {formatCurrency(wantsVarianceUSD, currentCurrency, {
+                        </div>
+                        <div className="flex items-center gap-3 font-mono tabular-nums shrink-0">
+                          <span className="text-slate-400">{share}%</span>
+                          <span className="font-semibold text-[#0b1c30] w-20 text-right">
+                            {formatCurrency(item.total, currentCurrency, {
                               showCents: false,
                             })}
-                          </span>{" "}
-                          under your {wantsPctTarget}% cap ({wantsUsagePct}%
-                          used) — eligible to sweep directly into high-yield
-                          vaults at {apyRate}% APY.
-                        </>
-                      ) : (
-                        <>
-                          Your Lifestyle &amp; Wants spend exceeded your{" "}
-                          {wantsPctTarget}% target by{" "}
-                          <span className="font-mono tabular-nums font-semibold text-white">
-                            {formatCurrency(
-                              Math.abs(wantsVarianceUSD),
-                              currentCurrency,
-                              { showCents: false }
-                            )}
                           </span>
-                          . Review variable categories in Salary &amp; Plan to
-                          restore surplus velocity.
-                        </>
-                      )}
-                    </p>
-                  </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-
-              <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between space-y-5">
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-base font-bold text-[#0b1c30]">
-                        Active FX Hedging Performance
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Dual-currency vault reserves &amp; spot settlement pairs
-                      </p>
-                    </div>
-                    <Globe2 className="w-5 h-5 text-[#006948] shrink-0" />
-                  </div>
-
-                  {hedgedVaults.length > 0 ? (
-                    <div className="space-y-3">
-                      {hedgedVaults.map((hv, idx) => {
-                        const fx = CURRENCIES[hv.foreignCurrency];
-                        const pct =
-                          hv.foreignTargetAmount > 0
-                            ? Math.min(
-                                100,
-                                Math.round(
-                                  (hv.foreignCurrentAmount /
-                                    hv.foreignTargetAmount) *
-                                    100
-                                )
-                              )
-                            : 0;
-                        return (
-                          <div
-                            key={`${hv.goal}-fx-${idx}`}
-                            className="rounded-xl bg-[#eff4ff]/70 border border-slate-200 p-4 space-y-2"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-semibold text-[#0b1c30]">
-                                {hv.goal}
-                              </span>
-                              <span className="text-xs font-mono font-semibold text-[#006948]">
-                                USD → {hv.foreignCurrency}
-                              </span>
-                            </div>
-                            <p className="text-sm font-bold font-mono tabular-nums text-[#0b1c30]">
-                              {fx.symbol}
-                              {Number(
-                                hv.foreignCurrentAmount || 0
-                              ).toLocaleString("en-US")}{" "}
-                              <span className="text-xs font-normal text-slate-500">
-                                / {fx.symbol}
-                                {Number(
-                                  hv.foreignTargetAmount || 0
-                                ).toLocaleString("en-US")}{" "}
-                                {hv.foreignCurrency}
-                              </span>
-                            </p>
-                            <p className="text-[11px] text-slate-500 font-mono tabular-nums">
-                              USD Reserve:{" "}
-                              {formatCurrency(hv.saved_amount, currentCurrency, {
-                                showCents: false,
-                              })}{" "}
-                              · {pct}% hedged at 1 USD = {fx.rateAgainstUSD}{" "}
-                              {hv.foreignCurrency}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="rounded-xl bg-[#eff4ff]/70 border border-slate-200 p-4 text-xs text-slate-600">
-                      No foreign-hedged vaults active yet. Enable FX Hedge on any
-                      goal in Vaults to lock target currency reserves.
-                    </div>
-                  )}
-
-                  <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500">
-                        Active Settlement Currency
-                      </span>
-                      <span className="font-mono font-bold text-[#0b1c30]">
-                        {currentCurrency} ({CURRENCIES[currentCurrency]?.symbol}
-                        )
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-500">
-                        Monthly Auto-Contribution
-                      </span>
-                      <span className="font-mono font-semibold text-[#006948] tabular-nums">
-                        {formatCurrency(monthlyContributionUSD, currentCurrency, {
-                          showCents: false,
-                        })}
-                        /mo
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {onOpenFXModal && (
-                  <button
-                    type="button"
-                    onClick={onOpenFXModal}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#0b1c30] bg-[#eff4ff] hover:bg-[#dce9ff] rounded-lg transition-colors cursor-pointer"
-                  >
-                    <ArrowLeftRight className="w-3.5 h-3.5 text-[#006948]" />
-                    <span>Inspect Live FX Spot Matrix</span>
-                  </button>
-                )}
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
+                No category expenses recorded yet.
               </div>
-            </div>
+            )}
           </div>
-        )}
+        </div>
 
         {/* Bottom Grid: Monthly Budget Progress + Active Savings Vaults */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
