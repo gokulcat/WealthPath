@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import * as XLSX from "xlsx";
 import {
   Download,
@@ -7,11 +7,18 @@ import {
   CheckCircle2,
   AlertCircle,
   Receipt,
+  Search,
+  Trash2,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
 
-function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
+function ExpenseForm({
+  expenses: propExpenses,
+  budgets = [],
+  onAddExpense,
+  onDeleteExpense,
+}) {
   const [localExpenses, setLocalExpenses] = useState([]);
   const expenses = propExpenses !== undefined ? propExpenses : localExpenses;
 
@@ -21,6 +28,8 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
   const [amount, setAmount] = useState("");
   const [feedback, setFeedback] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const addExpenseRecord = (newExpense) => {
     if (onAddExpense) {
@@ -28,6 +37,18 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
     } else {
       setLocalExpenses((prev) => [...prev, newExpense]);
     }
+  };
+
+  const removeExpenseRecord = (expenseItem) => {
+    if (onDeleteExpense) {
+      onDeleteExpense(expenseItem);
+    } else {
+      setLocalExpenses((prev) => prev.filter((item) => item !== expenseItem));
+    }
+    setFeedback({
+      type: "success",
+      text: "Expense removed.",
+    });
   };
 
   const handleSubmit = (event) => {
@@ -101,7 +122,31 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
     });
   };
 
-  const totalAmount = expenses.reduce(
+  const categories = useMemo(() => {
+    const unique = new Set(
+      expenses.map((item) => (item.category || "Other").trim())
+    );
+    return Array.from(unique).sort();
+  }, [expenses]);
+
+  const filteredExpenses = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return [...expenses]
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+      .filter((item) => {
+        const matchesCategory =
+          categoryFilter === "all" ||
+          (item.category || "").trim() === categoryFilter;
+        const matchesQuery =
+          !query ||
+          (item.category || "").toLowerCase().includes(query) ||
+          (item.note || item.description || "").toLowerCase().includes(query) ||
+          (item.date || "").includes(query);
+        return matchesCategory && matchesQuery;
+      });
+  }, [expenses, searchQuery, categoryFilter]);
+
+  const filteredTotal = filteredExpenses.reduce(
     (sum, item) => sum + (parseFloat(item.amount) || 0),
     0
   );
@@ -189,7 +234,7 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="e.g. Food, Transport, Utilities"
-                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   required
                 />
               </div>
@@ -207,7 +252,7 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="e.g. Weekly groceries"
-                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                  className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                   required
                 />
               </div>
@@ -225,7 +270,7 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                    className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                     required
                   />
                 </div>
@@ -244,7 +289,7 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0.00"
-                    className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                    className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
                     required
                   />
                 </div>
@@ -252,7 +297,7 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
 
               <button
                 type="submit"
-                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold rounded-lg transition-colors duration-150 cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-900 hover:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-colors duration-150 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Expense</span>
@@ -262,59 +307,93 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
 
           {/* Expenses Table Panel */}
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Your Expenses
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {expenses.length} {expenses.length === 1 ? "entry" : "entries"}{" "}
-                  · Total{" "}
-                  <span className="font-mono tabular-nums font-medium text-slate-700">
-                    ${totalAmount.toFixed(2)}
-                  </span>
-                </p>
+            <div className="px-6 py-4 border-b border-slate-200 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Your Expenses
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {filteredExpenses.length}{" "}
+                    {filteredExpenses.length === 1 ? "entry" : "entries"} · Total{" "}
+                    <span className="font-mono tabular-nums font-medium text-slate-700">
+                      ${filteredTotal.toFixed(2)}
+                    </span>
+                  </p>
+                </div>
               </div>
+
               {expenses.length > 0 && (
-                <button
-                  type="button"
-                  onClick={exportToExcel}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export to Excel</span>
-                </button>
+                <div className="flex flex-col sm:flex-row gap-2.5">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search notes, categories, dates..."
+                      aria-label="Search expenses"
+                      className="w-full pl-9 pr-3 py-2 text-xs text-slate-900 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white"
+                    />
+                  </div>
+                  <select
+                    aria-label="Filter expenses by category"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="px-3 py-2 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:bg-white"
+                  >
+                    <option value="all">All Categories</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
             </div>
 
-            {expenses.length > 0 ? (
+            {filteredExpenses.length > 0 ? (
               <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-slate-50">
                     <tr className="border-b border-slate-200 text-xs font-semibold text-slate-600">
-                      <th className="px-6 py-3">Category</th>
-                      <th className="px-6 py-3">Note / Description</th>
-                      <th className="px-6 py-3">Date</th>
-                      <th className="px-6 py-3 text-right">Amount</th>
+                      <th className="px-5 py-3">Category</th>
+                      <th className="px-5 py-3">Note / Description</th>
+                      <th className="px-5 py-3">Date</th>
+                      <th className="px-5 py-3 text-right">Amount</th>
+                      <th className="px-4 py-3 text-right w-12">
+                        <span className="sr-only">Actions</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 text-sm">
-                    {expenses.map((expense, index) => (
+                    {filteredExpenses.map((expense, index) => (
                       <tr
-                        key={index}
+                        key={`${expense.date}-${expense.category}-${index}`}
                         className="hover:bg-slate-50/80 transition-colors"
                       >
-                        <td className="px-6 py-3.5 font-medium text-slate-900">
+                        <td className="px-5 py-3.5 font-medium text-slate-900 whitespace-nowrap">
                           {expense.category}
                         </td>
-                        <td className="px-6 py-3.5 text-slate-600">
+                        <td className="px-5 py-3.5 text-slate-600">
                           {expense.note || expense.description || "—"}
                         </td>
-                        <td className="px-6 py-3.5 text-slate-500 font-mono tabular-nums text-xs">
+                        <td className="px-5 py-3.5 text-slate-500 font-mono tabular-nums text-xs whitespace-nowrap">
                           {expense.date}
                         </td>
-                        <td className="px-6 py-3.5 text-right font-mono tabular-nums font-semibold text-slate-900">
-                          ${expense.amount}
+                        <td className="px-5 py-3.5 text-right font-mono tabular-nums font-semibold text-slate-900 whitespace-nowrap">
+                          ${Number(expense.amount).toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => removeExpenseRecord(expense)}
+                            aria-label={`Delete ${expense.category} expense`}
+                            className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -325,10 +404,14 @@ function ExpenseForm({ expenses: propExpenses, budgets = [], onAddExpense }) {
               <div className="px-6 py-16 text-center">
                 <Receipt className="w-10 h-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-sm font-medium text-slate-700">
-                  No expenses added yet.
+                  {expenses.length === 0
+                    ? "No expenses added yet."
+                    : "No matching expenses found."}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Use the form on the left to record your first expense.
+                  {expenses.length === 0
+                    ? "Use the form on the left to record your first expense."
+                    : "Try clearing your search or category filter."}
                 </p>
               </div>
             )}

@@ -148,6 +148,10 @@ function AppContent() {
     setExpenses((prev) => [...prev, newExpense]);
   };
 
+  const handleDeleteExpense = (expenseToDelete) => {
+    setExpenses((prev) => prev.filter((item) => item !== expenseToDelete));
+  };
+
   const handleSaveBudget = ({ category, budgetAmount }) => {
     const normalized = category.trim().toLowerCase();
     const numericAmount = parseFloat(budgetAmount) || 0;
@@ -257,6 +261,7 @@ function AppContent() {
                   expenses={expenses}
                   budgets={budgets}
                   onAddExpense={handleAddExpense}
+                  onDeleteExpense={handleDeleteExpense}
                 />
               ) : (
                 <Navigate to="/login" replace />

@@ -137,7 +137,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
                 placeholder="0.00"
                 autoFocus
                 required
-                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 font-mono tabular-nums bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
             </div>
 
@@ -154,7 +154,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
             </div>
           </div>
@@ -170,7 +170,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
               id="modal-expense-category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+              className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
             >
               {PRESET_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -196,7 +196,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
                 onChange={(e) => setCustomCategory(e.target.value)}
                 placeholder="Enter category name"
                 required
-                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
             </div>
           )}
@@ -214,7 +214,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional description or memo (e.g. Grocery run, Metro pass)"
-              className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600 resize-none"
+              className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 resize-none"
             />
           </div>
 
@@ -228,7 +228,7 @@ function AddExpenseModal({ isOpen, onClose, onAddExpense }) {
             </button>
             <button
               type="submit"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-violet-700 hover:bg-violet-800 rounded-lg transition-colors cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 rounded-lg transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Save Expense</span>

@@ -190,17 +190,32 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
               placeholder={isLogin ? "test@wealthwise.com" : "you@example.com"}
               autoFocus
               required
-              className="mt-1.5 block w-full px-3.5 py-2.5 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+              className="mt-1.5 block w-full px-3.5 py-2.5 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
             />
           </div>
 
           <div>
-            <label
-              htmlFor="auth-modal-password"
-              className="block text-sm font-medium text-slate-700"
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label
+                htmlFor="auth-modal-password"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Password
+              </label>
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail("test@wealthwise.com");
+                    setPassword("password123");
+                    setFeedback(null);
+                  }}
+                  className="text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline cursor-pointer"
+                >
+                  Fill demo account
+                </button>
+              )}
+            </div>
             <div className="relative mt-1.5">
               <input
                 id="auth-modal-password"
@@ -209,7 +224,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder={isLogin ? "Enter your password" : "Create a password"}
                 required
-                className="block w-full px-3.5 py-2.5 pr-10 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-600 focus:border-violet-600"
+                className="block w-full px-3.5 py-2.5 pr-10 text-sm text-slate-900 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600"
               />
               <button
                 type="button"
@@ -228,7 +243,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
 
           <button
             type="submit"
-            className="w-full bg-violet-700 hover:bg-violet-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+            className="w-full bg-blue-900 hover:bg-blue-800 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
           >
             {isLogin ? "Log In" : "Sign Up"}
           </button>
@@ -241,7 +256,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                   setFeedback(null);
                   onSwitchMode("signup");
                 }}
-                className="text-sm font-medium text-violet-700 hover:text-violet-800 hover:underline cursor-pointer"
+                className="text-sm font-medium text-blue-800 hover:text-blue-900 hover:underline cursor-pointer"
               >
                 Don&apos;t have an account? Sign Up for WealthWise
               </button>
@@ -252,7 +267,7 @@ function AuthModal({ mode, onClose, onSwitchMode, onLogin }) {
                   setFeedback(null);
                   onSwitchMode("login");
                 }}
-                className="text-sm font-medium text-violet-700 hover:text-violet-800 hover:underline cursor-pointer"
+                className="text-sm font-medium text-blue-800 hover:text-blue-900 hover:underline cursor-pointer"
               >
                 Have an account? Login for WealthWise
               </button>

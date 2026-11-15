@@ -76,7 +76,7 @@ const Navbar = ({
     const active = location.pathname === path;
     return `text-sm font-medium transition-colors duration-150 whitespace-nowrap shrink-0 py-1 border-b-2 ${
       active
-        ? "text-violet-700 border-violet-700"
+        ? "text-blue-900 border-blue-900"
         : "text-slate-600 border-transparent hover:text-slate-900 hover:border-slate-300"
     }`;
   };
@@ -124,7 +124,7 @@ const Navbar = ({
             <button
               type="button"
               onClick={onLogoutClick}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
@@ -137,7 +137,7 @@ const Navbar = ({
                   onClick={() => handleOpenAuth("login")}
                   className={`px-3.5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer ${
                     authModalMode === "login"
-                      ? "text-violet-700 bg-violet-50"
+                      ? "text-blue-900 bg-blue-50"
                       : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                   }`}
                 >
@@ -150,10 +150,10 @@ const Navbar = ({
                   aria-expanded={showCreds}
                   aria-label="Demo login credentials"
                   title="Demo login credentials"
-                  className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600 ${
+                  className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
                     showCreds
-                      ? "bg-violet-50 border-violet-300 text-violet-700"
-                      : "bg-white border-slate-200 text-slate-500 hover:text-violet-700 hover:border-violet-200 hover:bg-violet-50/50"
+                      ? "bg-blue-50 border-blue-300 text-blue-800"
+                      : "bg-white border-slate-200 text-slate-500 hover:text-blue-800 hover:border-blue-200 hover:bg-blue-50/50"
                   }`}
                 >
                   <Info className="w-4 h-4" />
@@ -194,7 +194,7 @@ const Navbar = ({
                             copyValue("email", "test@wealthwise.com")
                           }
                           aria-label="Copy email"
-                          className="shrink-0 p-1.5 rounded-md text-slate-500 hover:text-violet-700 hover:bg-white transition-colors cursor-pointer"
+                          className="shrink-0 p-1.5 rounded-md text-slate-500 hover:text-blue-800 hover:bg-white transition-colors cursor-pointer"
                         >
                           {copiedField === "email" ? (
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -217,7 +217,7 @@ const Navbar = ({
                           type="button"
                           onClick={() => copyValue("password", "password123")}
                           aria-label="Copy password"
-                          className="shrink-0 p-1.5 rounded-md text-slate-500 hover:text-violet-700 hover:bg-white transition-colors cursor-pointer"
+                          className="shrink-0 p-1.5 rounded-md text-slate-500 hover:text-blue-800 hover:bg-white transition-colors cursor-pointer"
                         >
                           {copiedField === "password" ? (
                             <Check className="w-3.5 h-3.5 text-emerald-600" />
@@ -234,7 +234,7 @@ const Navbar = ({
               <button
                 type="button"
                 onClick={() => handleOpenAuth("signup")}
-                className="px-4 py-2 text-sm font-semibold text-white bg-violet-700 hover:bg-violet-800 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+                className="px-4 py-2 text-sm font-semibold text-white bg-blue-900 hover:bg-blue-800 rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               >
                 Sign Up
               </button>
@@ -361,7 +361,7 @@ const Navbar = ({
               <button
                 type="button"
                 onClick={() => handleOpenAuth("signup")}
-                className="w-full text-left block px-3 py-2.5 rounded-lg text-sm font-semibold text-violet-700 hover:bg-violet-50 cursor-pointer"
+                className="w-full text-left block px-3 py-2.5 rounded-lg text-sm font-semibold text-blue-900 hover:bg-blue-50 cursor-pointer"
               >
                 Sign Up
               </button>
