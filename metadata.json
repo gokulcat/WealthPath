@@ -1,0 +1,6 @@
+{
+  "name": "WealthWise",
+  "description": "Personal finance tracker for managing expenses, budgets, financial goals, and spending analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
