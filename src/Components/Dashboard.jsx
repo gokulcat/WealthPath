@@ -181,6 +181,7 @@ const Dashboard = ({
   onAddExpense,
   currentCurrency = "USD",
   apyRate = 4.85,
+  alertThreshold = 80,
   onOpenFXModal,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1359,6 +1360,9 @@ const Dashboard = ({
         onClose={() => setIsModalOpen(false)}
         onAddExpense={handleQuickAddExpense}
         currentCurrency={currentCurrency}
+        expenses={expenses}
+        budgets={budgets}
+        alertThreshold={alertThreshold}
       />
     </div>
   );

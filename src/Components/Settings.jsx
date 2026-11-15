@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
+  Bell,
 } from "lucide-react";
 import { CURRENCIES } from "../utils/currency";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
@@ -51,6 +52,7 @@ function Settings({
   budgets = [],
   goals = [],
   onResetDemoData,
+  onTriggerSampleAlert,
 }) {
   const [confirmReset, setConfirmReset] = useState(false);
   const [feedback, setFeedback] = useState("");
@@ -65,6 +67,8 @@ function Settings({
   const zeroDeficitProtection = settings?.zeroDeficitProtection ?? true;
   const fdicPassThrough = settings?.fdicPassThrough ?? true;
   const twoFactorAuth = settings?.twoFactorAuth ?? true;
+  const budgetAlertsEnabled = settings?.budgetAlertsEnabled ?? true;
+  const budgetAlertThreshold = settings?.budgetAlertThreshold ?? 80;
   const accounts = settings?.accounts || [];
 
   const handleAddAccount = (e) => {
@@ -460,7 +464,7 @@ function Settings({
             </div>
           </section>
 
-          {/* Security & Encryption */}
+          {/* Security, Encryption & Budget Alert Preferences */}
           <section className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between space-y-5">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
@@ -469,11 +473,11 @@ function Settings({
                 </div>
                 <div>
                   <h2 className="text-base font-bold text-[#0b1c30]">
-                    Security &amp; Encryption
+                    Security &amp; Real-Time Budget Alerts
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Workspace authentication, session integrity, and multi-factor
-                    verification
+                    Multi-factor verification and live budget threshold alert
+                    rules
                   </p>
                 </div>
               </div>
@@ -492,7 +496,66 @@ function Settings({
                   label="Two-Factor Authentication (TOTP)"
                   description="Require authenticator verification for external bank transfers and vault unlinking."
                 />
+
+                <ToggleSwitch
+                  checked={budgetAlertsEnabled}
+                  onChange={(val) => {
+                    onUpdateSettings &&
+                      onUpdateSettings({ budgetAlertsEnabled: val });
+                    setFeedback(
+                      val
+                        ? "Real-time budget threshold alerts enabled."
+                        : "Real-time budget threshold alerts paused."
+                    );
+                  }}
+                  label="Real-Time Budget Threshold Alerts"
+                  description="Alert via live toast and bell indicator when category spending approaches or exceeds its monthly cap."
+                />
               </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+                <div>
+                  <p className="text-xs font-semibold text-[#0b1c30]">
+                    Approaching Warning Threshold
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Fires warning alert before reaching 100% cap
+                  </p>
+                </div>
+                <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-lg border border-slate-200 self-start sm:self-auto">
+                  {[70, 75, 80, 90].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => {
+                        onUpdateSettings &&
+                          onUpdateSettings({ budgetAlertThreshold: pct });
+                        setFeedback(`Warning threshold set to ${pct}%.`);
+                      }}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-md cursor-pointer ${
+                        budgetAlertThreshold === pct
+                          ? "bg-[#006948] text-white"
+                          : "text-slate-600 hover:text-[#0b1c30]"
+                      }`}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {onTriggerSampleAlert && (
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={onTriggerSampleAlert}
+                    className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#006948] bg-[#eff4ff] hover:bg-[#dce9ff] rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>Test Real-Time Budget Toast Alert</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl bg-[#0b1c30] text-white p-4 space-y-1.5">

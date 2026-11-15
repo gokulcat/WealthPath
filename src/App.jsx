@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   BrowserRouter,
   Route,
@@ -17,7 +17,13 @@ import Navbar from "./Components/Navbar";
 import WealthWise from "./Components/WealthWise";
 import AuthModal from "./Components/AuthModal";
 import FXRoutesModal from "./Components/FXRoutesModal";
+import BudgetAlertSystem from "./Components/BudgetAlertSystem";
 import { CURRENCIES } from "./utils/currency";
+import {
+  evaluateBudgetAlerts,
+  buildCategoryBudgetAlert,
+  getMonthCategorySpendUSD,
+} from "./utils/budgetAlerts";
 
 const INITIAL_EXPENSES = [
   { category: "Food", description: "Groceries & dining", note: "Groceries & dining", date: "2026-01-12", amount: 180 },
@@ -105,6 +111,8 @@ const INITIAL_SETTINGS = {
   zeroDeficitProtection: true,
   fdicPassThrough: true,
   twoFactorAuth: true,
+  budgetAlertsEnabled: true,
+  budgetAlertThreshold: 80,
   accounts: [
     {
       name: "Premier Checking",
@@ -156,6 +164,9 @@ function AppContent() {
 
   const [authModalMode, setAuthModalMode] = useState(null);
   const [fxModalOpen, setFxModalOpen] = useState(false);
+  const [budgetToasts, setBudgetToasts] = useState([]);
+  const [activeAlertModal, setActiveAlertModal] = useState(null);
+  const [readAlertIds, setReadAlertIds] = useState([]);
 
   const [currentCurrency, setCurrentCurrency] = useState(() => {
     try {
@@ -275,6 +286,42 @@ function AppContent() {
     setIsAuthenticated(true);
   };
 
+  const budgetAlertsEnabled = settings?.budgetAlertsEnabled ?? true;
+  const budgetAlertThreshold = settings?.budgetAlertThreshold ?? 80;
+
+  const activeBudgetAlerts = useMemo(() => {
+    if (!budgetAlertsEnabled) return [];
+    return evaluateBudgetAlerts(expenses, budgets, budgetAlertThreshold);
+  }, [expenses, budgets, budgetAlertsEnabled, budgetAlertThreshold]);
+
+  const pushBudgetToast = (alertToast) => {
+    if (!alertToast || !budgetAlertsEnabled) return;
+    setBudgetToasts((prev) => {
+      const filtered = prev.filter((t) => t.alertId !== alertToast.alertId);
+      return [...filtered, alertToast];
+    });
+    setReadAlertIds((prev) => prev.filter((id) => id !== alertToast.alertId));
+  };
+
+  const handleDismissToast = (toastId) => {
+    setBudgetToasts((prev) => prev.filter((t) => t.toastId !== toastId));
+  };
+
+  const handleOpenAlertModal = (alertItem) => {
+    if (!alertItem) return;
+    const normalizedId = alertItem.alertId || alertItem.id;
+    if (normalizedId) {
+      setReadAlertIds((prev) =>
+        prev.includes(normalizedId) ? prev : [...prev, normalizedId]
+      );
+    }
+    setActiveAlertModal(alertItem);
+  };
+
+  const handleMarkAlertsRead = () => {
+    setReadAlertIds(activeBudgetAlerts.map((a) => a.id));
+  };
+
   const handleLogout = () => {
     try {
       localStorage.removeItem("isLoggedIn");
@@ -283,18 +330,58 @@ function AppContent() {
     }
     setAuthModalMode(null);
     setFxModalOpen(false);
+    setBudgetToasts([]);
+    setActiveAlertModal(null);
     setIsAuthenticated(false);
     navigate("/", { replace: true });
   };
 
   const handleAddExpense = (newExpense) => {
-    setExpenses((prev) => [...prev, newExpense]);
+    const monthKey = (newExpense.date || "").slice(0, 7);
+    const prevSpentUSD = getMonthCategorySpendUSD(
+      expenses,
+      newExpense.category,
+      monthKey
+    );
+    const nextExpenses = [...expenses, newExpense];
+    setExpenses(nextExpenses);
+
+    if (budgetAlertsEnabled) {
+      const alertToast = buildCategoryBudgetAlert({
+        expenses: nextExpenses,
+        budgets,
+        category: newExpense.category,
+        monthKey,
+        thresholdPct: budgetAlertThreshold,
+        previousSpentUSD: prevSpentUSD,
+      });
+      pushBudgetToast(alertToast);
+    }
   };
 
   const handleUpdateExpense = (oldExpense, updatedExpense) => {
-    setExpenses((prev) =>
-      prev.map((item) => (item === oldExpense ? updatedExpense : item))
+    const monthKey = (updatedExpense.date || "").slice(0, 7);
+    const prevSpentUSD = getMonthCategorySpendUSD(
+      expenses,
+      updatedExpense.category,
+      monthKey
     );
+    const nextExpenses = expenses.map((item) =>
+      item === oldExpense ? updatedExpense : item
+    );
+    setExpenses(nextExpenses);
+
+    if (budgetAlertsEnabled) {
+      const alertToast = buildCategoryBudgetAlert({
+        expenses: nextExpenses,
+        budgets,
+        category: updatedExpense.category,
+        monthKey,
+        thresholdPct: budgetAlertThreshold,
+        previousSpentUSD: prevSpentUSD,
+      });
+      pushBudgetToast(alertToast);
+    }
   };
 
   const handleDeleteExpense = (expenseToDelete) => {
@@ -304,24 +391,45 @@ function AppContent() {
   const handleSaveBudget = ({ category, budgetAmount, stream }) => {
     const normalized = category.trim().toLowerCase();
     const numericAmount = parseFloat(budgetAmount) || 0;
-    setBudgets((prev) => {
-      const existingIndex = prev.findIndex(
-        (b) => b.category.trim().toLowerCase() === normalized
-      );
-      if (existingIndex >= 0) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          category: category.trim(),
-          budgetAmount: numericAmount,
-          stream: stream || updated[existingIndex].stream,
-        };
-        return updated;
-      }
-      return [
-        ...prev,
+    const existingIndex = budgets.findIndex(
+      (b) => b.category.trim().toLowerCase() === normalized
+    );
+    let nextBudgets;
+    if (existingIndex >= 0) {
+      nextBudgets = [...budgets];
+      nextBudgets[existingIndex] = {
+        category: category.trim(),
+        budgetAmount: numericAmount,
+        stream: stream || budgets[existingIndex].stream,
+      };
+    } else {
+      nextBudgets = [
+        ...budgets,
         { category: category.trim(), budgetAmount: numericAmount, stream },
       ];
-    });
+    }
+    setBudgets(nextBudgets);
+
+    if (budgetAlertsEnabled) {
+      const matchingMonths = expenses
+        .filter((e) => (e.category || "").trim().toLowerCase() === normalized)
+        .map((e) => (e.date || "").slice(0, 7))
+        .filter(Boolean)
+        .sort();
+      const targetMonth =
+        matchingMonths[matchingMonths.length - 1] ||
+        new Date().toISOString().slice(0, 7);
+
+      const alertToast = buildCategoryBudgetAlert({
+        expenses,
+        budgets: nextBudgets,
+        category: category.trim(),
+        monthKey: targetMonth,
+        thresholdPct: budgetAlertThreshold,
+        previousSpentUSD: null,
+      });
+      pushBudgetToast(alertToast);
+    }
   };
 
   const handleDeleteBudget = (categoryToDelete) => {
@@ -413,6 +521,42 @@ function AppContent() {
     setIncomeConfig(INITIAL_INCOME_CONFIG);
     setSettings(INITIAL_SETTINGS);
     setCurrentCurrency("USD");
+    setBudgetToasts([]);
+    setReadAlertIds([]);
+  };
+
+  const handleTriggerSampleAlert = () => {
+    const firstActive = activeBudgetAlerts[0];
+    if (firstActive) {
+      pushBudgetToast({
+        ...firstActive,
+        toastId: `sample-${Date.now()}`,
+        alertId: firstActive.id,
+        createdAt: Date.now(),
+      });
+      return;
+    }
+    const fallbackBudget = budgets[0] || {
+      category: "Food",
+      budgetAmount: 200,
+      stream: "Essential Needs",
+    };
+    const limit = parseFloat(fallbackBudget.budgetAmount) || 200;
+    const spent = Math.round(limit * (budgetAlertThreshold / 100));
+    pushBudgetToast({
+      toastId: `sample-${Date.now()}`,
+      alertId: `sample::${fallbackBudget.category.toLowerCase()}`,
+      category: fallbackBudget.category,
+      stream: fallbackBudget.stream,
+      monthKey: new Date().toISOString().slice(0, 7),
+      monthLabel: "Current Month",
+      spentUSD: spent,
+      limitUSD: limit,
+      remainingUSD: limit - spent,
+      pct: budgetAlertThreshold,
+      severity: budgetAlertThreshold >= 100 ? "exceeded" : "approaching",
+      createdAt: Date.now(),
+    });
   };
 
   const openAuthModal = (mode) => {
@@ -436,6 +580,12 @@ function AppContent() {
         currentCurrency={currentCurrency}
         onCurrencyChange={setCurrentCurrency}
         onOpenFXModal={() => setFxModalOpen(true)}
+        budgetAlerts={activeBudgetAlerts}
+        readAlertIds={readAlertIds}
+        alertThreshold={budgetAlertThreshold}
+        budgetAlertsEnabled={budgetAlertsEnabled}
+        onSelectAlert={handleOpenAlertModal}
+        onMarkAlertsRead={handleMarkAlertsRead}
       />
       <main className="flex-1 flex flex-col">
         <Routes>
@@ -491,6 +641,7 @@ function AppContent() {
                   onAddExpense={handleAddExpense}
                   currentCurrency={currentCurrency}
                   apyRate={settings.apyRate}
+                  alertThreshold={budgetAlertThreshold}
                   onOpenFXModal={() => setFxModalOpen(true)}
                 />
               ) : (
@@ -530,6 +681,7 @@ function AppContent() {
                   onUpdateExpense={handleUpdateExpense}
                   onDeleteExpense={handleDeleteExpense}
                   currentCurrency={currentCurrency}
+                  alertThreshold={budgetAlertThreshold}
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -585,6 +737,7 @@ function AppContent() {
                   budgets={budgets}
                   goals={goals}
                   onResetDemoData={handleResetDemoData}
+                  onTriggerSampleAlert={handleTriggerSampleAlert}
                 />
               ) : (
                 <Navigate to="/login" replace />
@@ -607,6 +760,18 @@ function AppContent() {
         baseCurrency={currentCurrency}
         onSelectBaseCurrency={setCurrentCurrency}
       />
+
+      {isAuthenticated && (
+        <BudgetAlertSystem
+          toasts={budgetToasts}
+          onDismissToast={handleDismissToast}
+          activeModalAlert={activeAlertModal}
+          onOpenAlertModal={handleOpenAlertModal}
+          onCloseAlertModal={() => setActiveAlertModal(null)}
+          expenses={expenses}
+          currentCurrency={currentCurrency}
+        />
+      )}
     </div>
   );
 }

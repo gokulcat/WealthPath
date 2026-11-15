@@ -28,6 +28,7 @@ function ExpenseForm({
   onUpdateExpense,
   onDeleteExpense,
   currentCurrency = "USD",
+  alertThreshold = 80,
 }) {
   const [localExpenses, setLocalExpenses] = useState([]);
   const expenses = propExpenses !== undefined ? propExpenses : localExpenses;
@@ -485,6 +486,9 @@ function ExpenseForm({
         onUpdateExpense={updateExpenseRecord}
         editingExpense={editingExpense}
         currentCurrency={currentCurrency}
+        expenses={expenses}
+        budgets={budgets}
+        alertThreshold={alertThreshold}
       />
     </div>
   );

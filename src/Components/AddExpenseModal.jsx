@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { X, Plus, Save } from "lucide-react";
+import { X, Plus, Save, AlertTriangle } from "lucide-react";
 import {
   CURRENCIES,
   convertAmount,
   toUSD,
   getCurrencySymbol,
+  formatCurrency,
 } from "../utils/currency";
+import { getMonthCategorySpendUSD } from "../utils/budgetAlerts";
 
 const PRESET_CATEGORIES = [
   "Food",
@@ -24,6 +26,9 @@ function AddExpenseModal({
   onUpdateExpense,
   editingExpense = null,
   currentCurrency = "USD",
+  expenses = [],
+  budgets = [],
+  alertThreshold = 80,
 }) {
   const today = new Date().toISOString().split("T")[0];
   const [amount, setAmount] = useState("");
@@ -120,6 +125,41 @@ function AddExpenseModal({
 
     onClose();
   };
+
+  const resolvedCatPreview =
+    category === "__custom__" ? customCategory.trim() : category;
+  const numericPreview = parseFloat(amount) || 0;
+  const previewAmountUSD = toUSD(numericPreview, currentCurrency);
+  const matchingBudget = budgets.find(
+    (b) =>
+      (b.category || "").trim().toLowerCase() ===
+      resolvedCatPreview.trim().toLowerCase()
+  );
+  const previewMonthKey = (date || "").slice(0, 7);
+  let liveBudgetPreview = null;
+  if (matchingBudget && previewMonthKey && numericPreview > 0) {
+    const limitUSD = parseFloat(matchingBudget.budgetAmount) || 0;
+    if (limitUSD > 0) {
+      const existingSpent = getMonthCategorySpendUSD(
+        isEditing
+          ? expenses.filter((item) => item !== editingExpense)
+          : expenses,
+        matchingBudget.category,
+        previewMonthKey
+      );
+      const projectedSpent = existingSpent + previewAmountUSD;
+      const projectedPct = Math.round((projectedSpent / limitUSD) * 100);
+      if (projectedPct >= alertThreshold) {
+        liveBudgetPreview = {
+          category: matchingBudget.category,
+          projectedPct,
+          limitUSD,
+          projectedSpent,
+          isExceeded: projectedPct >= 100,
+        };
+      }
+    }
+  }
 
   return (
     <div
@@ -265,6 +305,37 @@ function AddExpenseModal({
               className="mt-1.5 px-3.5 py-2.5 w-full text-sm text-[#0b1c30] bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:border-[#006948] resize-none"
             />
           </div>
+
+          {liveBudgetPreview && (
+            <div
+              role="status"
+              className={`flex items-start gap-2.5 px-3.5 py-2.5 rounded-lg text-xs border ${
+                liveBudgetPreview.isExceeded
+                  ? "bg-rose-50 text-rose-700 border-rose-200"
+                  : "bg-amber-50 text-amber-800 border-amber-200"
+              }`}
+            >
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                This entry puts <strong>{liveBudgetPreview.category}</strong>{" "}
+                at{" "}
+                <strong className="font-mono tabular-nums">
+                  {liveBudgetPreview.projectedPct}%
+                </strong>{" "}
+                (
+                {formatCurrency(
+                  liveBudgetPreview.projectedSpent,
+                  currentCurrency,
+                  { showCents: false }
+                )}{" "}
+                /{" "}
+                {formatCurrency(liveBudgetPreview.limitUSD, currentCurrency, {
+                  showCents: false,
+                })}
+                ) for {previewMonthKey}.
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-2">
             <button

@@ -10,8 +10,12 @@ import {
   ChevronDown,
   Settings as SettingsIcon,
   ArrowLeftRight,
+  Bell,
+  AlertTriangle,
+  ShieldAlert,
+  CheckCheck,
 } from "lucide-react";
-import { CURRENCIES } from "../utils/currency";
+import { CURRENCIES, formatCurrency } from "../utils/currency";
 
 const Navbar = ({
   isAuthenticated,
@@ -21,15 +25,23 @@ const Navbar = ({
   currentCurrency = "USD",
   onCurrencyChange,
   onOpenFXModal,
+  budgetAlerts = [],
+  readAlertIds = [],
+  alertThreshold = 80,
+  budgetAlertsEnabled = true,
+  onSelectAlert,
+  onMarkAlertsRead,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showCreds, setShowCreds] = useState(false);
   const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
+  const [showAlertsMenu, setShowAlertsMenu] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const popoverRef = useRef(null);
   const currencyRef = useRef(null);
+  const alertsRef = useRef(null);
 
   const isLoggedIn =
     typeof isAuthenticated === "boolean"
@@ -37,6 +49,11 @@ const Navbar = ({
       : localStorage.getItem("isLoggedIn") === "true";
 
   const activeCurrencyObj = CURRENCIES[currentCurrency] || CURRENCIES.USD;
+
+  const unreadCount = budgetAlertsEnabled
+    ? budgetAlerts.filter((a) => !readAlertIds.includes(a.id)).length
+    : 0;
+  const hasExceeded = budgetAlerts.some((a) => a.severity === "exceeded");
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -46,11 +63,15 @@ const Navbar = ({
       if (currencyRef.current && !currencyRef.current.contains(event.target)) {
         setShowCurrencyMenu(false);
       }
+      if (alertsRef.current && !alertsRef.current.contains(event.target)) {
+        setShowAlertsMenu(false);
+      }
     };
     const handleEscape = (event) => {
       if (event.key === "Escape") {
         setShowCreds(false);
         setShowCurrencyMenu(false);
+        setShowAlertsMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -65,6 +86,7 @@ const Navbar = ({
     setMobileOpen(false);
     setShowCreds(false);
     setShowCurrencyMenu(false);
+    setShowAlertsMenu(false);
   }, [location.pathname]);
 
   const onLogoutClick = () => {
@@ -215,6 +237,174 @@ const Navbar = ({
                 )}
               </div>
 
+              {/* Budget Threshold Notification Bell */}
+              <div className="relative" ref={alertsRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowAlertsMenu((prev) => !prev)}
+                  aria-expanded={showAlertsMenu}
+                  aria-label="Budget alerts"
+                  title="Budget threshold alerts"
+                  className={`relative inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors cursor-pointer ${
+                    showAlertsMenu
+                      ? "bg-[#eff4ff] border-[#006948]/40 text-[#0b1c30]"
+                      : "bg-white text-slate-600 border-slate-200 hover:bg-[#eff4ff] hover:text-[#0b1c30]"
+                  }`}
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span
+                      className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold font-mono text-white flex items-center justify-center ${
+                        hasExceeded ? "bg-rose-600" : "bg-amber-500"
+                      }`}
+                    >
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showAlertsMenu && (
+                  <div
+                    role="dialog"
+                    aria-label="Monthly budget notifications"
+                    className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+                  >
+                    <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2 bg-[#eff4ff]/50">
+                      <div>
+                        <p className="text-xs font-bold text-[#0b1c30]">
+                          Budget Threshold Alerts
+                        </p>
+                        <p className="text-[11px] text-slate-500">
+                          {budgetAlertsEnabled
+                            ? `Triggering at ≥${alertThreshold}% monthly cap`
+                            : "Real-time alerts paused in Settings"}
+                        </p>
+                      </div>
+                      {unreadCount > 0 && onMarkAlertsRead && (
+                        <button
+                          type="button"
+                          onClick={onMarkAlertsRead}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#006948] hover:underline cursor-pointer"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" />
+                          <span>Mark read</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {!budgetAlertsEnabled ? (
+                      <div className="px-4 py-6 text-center text-xs text-slate-500">
+                        Real-time budget alerts are turned off.{" "}
+                        <Link
+                          to="/settings"
+                          onClick={() => setShowAlertsMenu(false)}
+                          className="font-semibold text-[#006948] hover:underline"
+                        >
+                          Enable in Settings
+                        </Link>
+                      </div>
+                    ) : budgetAlerts.length > 0 ? (
+                      <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                        {budgetAlerts.map((alert) => {
+                          const isExceeded = alert.severity === "exceeded";
+                          const isUnread = !readAlertIds.includes(alert.id);
+                          return (
+                            <button
+                              key={alert.id}
+                              type="button"
+                              onClick={() => {
+                                setShowAlertsMenu(false);
+                                onSelectAlert && onSelectAlert(alert);
+                              }}
+                              className={`w-full text-left px-4 py-3 hover:bg-[#eff4ff]/70 transition-colors flex items-start gap-3 cursor-pointer ${
+                                isUnread ? "bg-[#eff4ff]/35" : "bg-white"
+                              }`}
+                            >
+                              <div
+                                className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${
+                                  isExceeded
+                                    ? "bg-rose-50 text-rose-600"
+                                    : "bg-amber-50 text-amber-600"
+                                }`}
+                              >
+                                {isExceeded ? (
+                                  <ShieldAlert className="w-4 h-4" />
+                                ) : (
+                                  <AlertTriangle className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-bold text-[#0b1c30] truncate">
+                                    {alert.category} · {alert.monthLabel}
+                                  </span>
+                                  <span
+                                    className={`text-[11px] font-mono font-bold shrink-0 ${
+                                      isExceeded
+                                        ? "text-rose-600"
+                                        : "text-amber-700"
+                                    }`}
+                                  >
+                                    {alert.pct}%
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 mt-0.5 font-mono tabular-nums">
+                                  {formatCurrency(
+                                    alert.spentUSD,
+                                    currentCurrency,
+                                    { showCents: false }
+                                  )}{" "}
+                                  /{" "}
+                                  {formatCurrency(
+                                    alert.limitUSD,
+                                    currentCurrency,
+                                    { showCents: false }
+                                  )}{" "}
+                                  ·{" "}
+                                  {isExceeded
+                                    ? `${formatCurrency(
+                                        Math.abs(alert.remainingUSD),
+                                        currentCurrency,
+                                        { showCents: false }
+                                      )} over`
+                                    : `${formatCurrency(
+                                        Math.max(0, alert.remainingUSD),
+                                        currentCurrency,
+                                        { showCents: false }
+                                      )} left`}
+                                </p>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="px-4 py-6 text-center text-xs text-slate-500">
+                        All category budgets are currently under {alertThreshold}
+                        %.
+                      </div>
+                    )}
+
+                    <div className="px-4 py-2.5 border-t border-slate-100 bg-[#f8f9ff] flex items-center justify-between text-[11px]">
+                      <Link
+                        to="/budget"
+                        onClick={() => setShowAlertsMenu(false)}
+                        className="font-semibold text-[#006948] hover:underline"
+                      >
+                        Manage Budgets
+                      </Link>
+                      <Link
+                        to="/settings"
+                        onClick={() => setShowAlertsMenu(false)}
+                        className="font-medium text-slate-500 hover:text-[#0b1c30]"
+                      >
+                        Alert Settings
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Link
                 to="/settings"
                 aria-label="Workspace settings"
@@ -352,6 +542,31 @@ const Navbar = ({
 
         {/* Mobile Controls */}
         <div className="flex lg:hidden items-center gap-2">
+          {isLoggedIn && (
+            <button
+              type="button"
+              onClick={() => {
+                if (budgetAlerts.length > 0 && onSelectAlert) {
+                  onSelectAlert(budgetAlerts[0]);
+                } else {
+                  navigate("/budget");
+                }
+              }}
+              aria-label="Budget alerts"
+              className="relative inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-200 bg-white text-[#0b1c30] hover:bg-[#eff4ff] cursor-pointer"
+            >
+              <Bell className="w-4 h-4" />
+              {unreadCount > 0 && (
+                <span
+                  className={`absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full text-[10px] font-bold font-mono text-white flex items-center justify-center ${
+                    hasExceeded ? "bg-rose-600" : "bg-amber-500"
+                  }`}
+                >
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          )}
           {isLoggedIn && onOpenFXModal && (
             <button
               type="button"
