@@ -25,6 +25,12 @@ import {
   buildCategoryBudgetAlert,
   getMonthCategorySpendUSD,
 } from "./utils/budgetAlerts";
+import {
+  getInitialRecurringExpenses,
+  processDueRecurringExpenses,
+  advanceDateByFrequency,
+  getTodayISO,
+} from "./utils/recurringExpenses";
 
 const INITIAL_EXPENSES = [
   { category: "Food", description: "Groceries & dining", note: "Groceries & dining", date: "2026-01-12", amount: 180 },
@@ -136,6 +142,7 @@ const GOALS_STORAGE_KEY = "wealthwise_goals";
 const CURRENCY_STORAGE_KEY = "wealthwise_currency";
 const INCOME_STORAGE_KEY = "wealthwise_income";
 const SETTINGS_STORAGE_KEY = "wealthwise_settings";
+const RECURRING_STORAGE_KEY = "wealthwise_recurring_expenses";
 
 function loadJSON(key, fallback) {
   try {
@@ -209,6 +216,11 @@ function AppContent() {
     };
   });
 
+  const [recurringExpenses, setRecurringExpenses] = useState(() => {
+    const loaded = loadJSON(RECURRING_STORAGE_KEY, null);
+    return Array.isArray(loaded) ? loaded : getInitialRecurringExpenses();
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem(EXPENSES_STORAGE_KEY, JSON.stringify(expenses));
@@ -256,6 +268,17 @@ function AppContent() {
       console.error("Error saving settings:", error);
     }
   }, [settings]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        RECURRING_STORAGE_KEY,
+        JSON.stringify(recurringExpenses)
+      );
+    } catch (error) {
+      console.error("Error saving recurring expenses:", error);
+    }
+  }, [recurringExpenses]);
 
   useEffect(() => {
     const syncAuth = () => {
@@ -516,12 +539,132 @@ function AppContent() {
     setSettings((prev) => ({ ...prev, ...patch }));
   };
 
+  const runRecurringScheduler = (rulesToProcess, baseExpenses) => {
+    const { generatedExpenses, updatedRules } = processDueRecurringExpenses(
+      rulesToProcess,
+      baseExpenses
+    );
+
+    if (generatedExpenses.length > 0) {
+      const nextExpenses = [...baseExpenses, ...generatedExpenses];
+      setExpenses(nextExpenses);
+      setRecurringExpenses(updatedRules);
+
+      if (budgetAlertsEnabled) {
+        generatedExpenses.forEach((entry) => {
+          const monthKey = (entry.date || "").slice(0, 7);
+          const alertToast = buildCategoryBudgetAlert({
+            expenses: nextExpenses,
+            budgets,
+            category: entry.category,
+            monthKey,
+            thresholdPct: budgetAlertThreshold,
+            previousSpentUSD: null,
+          });
+          pushBudgetToast(alertToast);
+        });
+      }
+      return generatedExpenses.length;
+    }
+
+    if (updatedRules !== rulesToProcess) {
+      setRecurringExpenses(updatedRules);
+    }
+    return 0;
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      runRecurringScheduler(recurringExpenses, expenses);
+    }, 0);
+    const interval = setInterval(() => {
+      runRecurringScheduler(recurringExpenses, expenses);
+    }, 60000);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recurringExpenses.length]);
+
+  const handleAddRecurring = (newRule) => {
+    const nextRules = [...recurringExpenses, newRule];
+    const { generatedExpenses, updatedRules } = processDueRecurringExpenses(
+      nextRules,
+      expenses
+    );
+    setRecurringExpenses(updatedRules);
+    if (generatedExpenses.length > 0) {
+      const nextExpenses = [...expenses, ...generatedExpenses];
+      setExpenses(nextExpenses);
+      if (budgetAlertsEnabled) {
+        generatedExpenses.forEach((entry) => {
+          const alertToast = buildCategoryBudgetAlert({
+            expenses: nextExpenses,
+            budgets,
+            category: entry.category,
+            monthKey: (entry.date || "").slice(0, 7),
+            thresholdPct: budgetAlertThreshold,
+            previousSpentUSD: null,
+          });
+          pushBudgetToast(alertToast);
+        });
+      }
+    }
+  };
+
+  const handleToggleRecurring = (ruleId) => {
+    const nextRules = recurringExpenses.map((r) =>
+      r.id === ruleId ? { ...r, active: r.active === false } : r
+    );
+    const { generatedExpenses, updatedRules } = processDueRecurringExpenses(
+      nextRules,
+      expenses
+    );
+    setRecurringExpenses(updatedRules);
+    if (generatedExpenses.length > 0) {
+      setExpenses((prev) => [...prev, ...generatedExpenses]);
+    }
+  };
+
+  const handleDeleteRecurring = (ruleId) => {
+    setRecurringExpenses((prev) => prev.filter((r) => r.id !== ruleId));
+  };
+
+  const handleTriggerSingleRecurringNow = (rule) => {
+    const today = getTodayISO();
+    const newEntry = {
+      category: rule.category || "Utilities",
+      description: rule.description || "Recurring Bill",
+      note: `${rule.description || "Recurring Bill"} (${
+        rule.frequency || "monthly"
+      } auto-bill)`,
+      date: today,
+      amount: Number((parseFloat(rule.amountUSD) || 0).toFixed(2)),
+      recurringId: rule.id,
+      isRecurring: true,
+    };
+    handleAddExpense(newEntry);
+    setRecurringExpenses((prev) =>
+      prev.map((r) =>
+        r.id === rule.id
+          ? {
+              ...r,
+              lastProcessedDate: today,
+              nextRunDate: advanceDateByFrequency(today, r.frequency),
+            }
+          : r
+      )
+    );
+  };
+
   const handleResetDemoData = () => {
     setExpenses(INITIAL_EXPENSES);
     setBudgets(INITIAL_BUDGETS);
     setGoals(INITIAL_GOALS);
     setIncomeConfig(INITIAL_INCOME_CONFIG);
     setSettings(INITIAL_SETTINGS);
+    setRecurringExpenses(getInitialRecurringExpenses());
     setCurrentCurrency("USD");
     setBudgetToasts([]);
     setReadAlertIds([]);
@@ -639,15 +782,17 @@ function AppContent() {
                   expenses={expenses}
                   budgets={budgets}
                   goals={goals}
+                  recurringExpenses={recurringExpenses}
                   incomeConfig={incomeConfig}
                   onAddExpense={handleAddExpense}
+                  onContributeGoal={handleContributeGoal}
                   currentCurrency={currentCurrency}
                   onCurrencyChange={setCurrentCurrency}
                   onOpenFXModal={() => setFxModalOpen(true)}
                   alertThreshold={budgetAlertThreshold}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -666,7 +811,7 @@ function AppContent() {
                   onUpdateSettings={handleUpdateSettings}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -685,7 +830,7 @@ function AppContent() {
                   onUpdateSettings={handleUpdateSettings}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -699,12 +844,20 @@ function AppContent() {
                   onAddExpense={handleAddExpense}
                   onUpdateExpense={handleUpdateExpense}
                   onDeleteExpense={handleDeleteExpense}
+                  recurringExpenses={recurringExpenses}
+                  onAddRecurring={handleAddRecurring}
+                  onToggleRecurring={handleToggleRecurring}
+                  onDeleteRecurring={handleDeleteRecurring}
+                  onRunDueNow={() =>
+                    runRecurringScheduler(recurringExpenses, expenses)
+                  }
+                  onTriggerSingleNow={handleTriggerSingleRecurringNow}
                   currentCurrency={currentCurrency}
                   onCurrencyChange={setCurrentCurrency}
                   alertThreshold={budgetAlertThreshold}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -723,7 +876,7 @@ function AppContent() {
                   apyRate={settings.apyRate}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -743,7 +896,7 @@ function AppContent() {
                   onUpdateSettings={handleUpdateSettings}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -762,7 +915,7 @@ function AppContent() {
                   onOpenFXModal={() => setFxModalOpen(true)}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
             }
           />
@@ -783,8 +936,14 @@ function AppContent() {
                   onTriggerSampleAlert={handleTriggerSampleAlert}
                 />
               ) : (
-                <Navigate to="/login" replace />
+                <Navigate to="/" replace />
               )
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <Navigate to={isAuthenticated ? "/dashboard" : "/"} replace />
             }
           />
         </Routes>

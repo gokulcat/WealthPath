@@ -29,9 +29,10 @@ import {
   Flame,
   PiggyBank,
   Gauge,
+  Repeat,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
-import AIFinancialInsightsCard from "./AIFinancialInsightsCard";
+import DashboardGoalsSection from "./DashboardGoalsSection";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
 import {
   CURRENCIES,
@@ -39,6 +40,7 @@ import {
   formatCurrency,
   getCategoryStream,
 } from "../utils/currency";
+import { getMonthlyEquivalentUSD } from "../utils/recurringExpenses";
 
 const CATEGORY_COLORS = {
   Food: "#006948",
@@ -238,8 +240,10 @@ const Dashboard = ({
   expenses = [],
   budgets = [],
   goals = [],
+  recurringExpenses = [],
   incomeConfig,
   onAddExpense,
+  onContributeGoal,
   currentCurrency = "USD",
   onCurrencyChange,
   onOpenFXModal,
@@ -768,15 +772,6 @@ const Dashboard = ({
           </div>
         </div>
 
-        {/* AI Financial Insights */}
-        <AIFinancialInsightsCard
-          expenses={expenses}
-          budgets={budgets}
-          goals={goals}
-          incomeConfig={incomeConfig}
-          currentCurrency={currentCurrency}
-        />
-
         {/* Primary Spending Graphs Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-6 flex flex-col">
@@ -1260,7 +1255,15 @@ const Dashboard = ({
           </div>
         </div>
 
-        {/* Bottom Grid: Monthly Budget Progress + Active Savings Vaults */}
+        {/* Dedicated Financial Goals & Visual Progress Section */}
+        <DashboardGoalsSection
+          goals={goals}
+          currentCurrency={currentCurrency}
+          onContributeGoal={onContributeGoal}
+          onNotify={showToast}
+        />
+
+        {/* Bottom Grid: Monthly Budget Progress + Upcoming Recurring Bills */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Monthly Budget Progress */}
           <section className="lg:col-span-8 bg-white border border-slate-200 rounded-xl overflow-hidden">
@@ -1406,75 +1409,70 @@ const Dashboard = ({
             )}
           </section>
 
-          {/* Top Savings Vaults Summary */}
+          {/* Upcoming Recurring Bills Summary */}
           <section className="lg:col-span-4 bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col">
             <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-lg font-semibold text-[#0b1c30]">
-                  Savings Vaults
+                  Recurring Bills
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {goals.length} active targets
+                <p className="text-xs text-slate-500 mt-0.5 font-mono tabular-nums">
+                  {formatCurrency(
+                    recurringExpenses
+                      .filter((r) => r.active !== false)
+                      .reduce((sum, r) => sum + getMonthlyEquivalentUSD(r), 0),
+                    currentCurrency,
+                    { showCents: false }
+                  )}
+                  /mo scheduled
                 </p>
               </div>
               <Link
-                to="/goals"
+                to="/expenses?tab=recurring"
                 className="text-xs font-semibold text-[#006948] hover:text-[#00855d] hover:underline whitespace-nowrap"
               >
                 Manage All
               </Link>
             </div>
 
-            {goals.length > 0 ? (
-              <div className="p-5 space-y-4 flex-1">
-                {goals.slice(0, 4).map((vault, idx) => {
-                  const targetUSD = parseFloat(vault.target_amount) || 0;
-                  const savedUSD = parseFloat(vault.saved_amount) || 0;
-                  const pct =
-                    targetUSD > 0
-                      ? Math.round((savedUSD / targetUSD) * 100)
-                      : 0;
-                  return (
-                    <div key={`${vault.goal}-${idx}`} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs gap-2">
-                        <span className="font-semibold text-[#0b1c30] truncate">
-                          {vault.goal}
-                        </span>
-                        <span className="font-mono tabular-nums font-semibold text-[#006948] shrink-0">
-                          {pct}%
-                        </span>
+            {recurringExpenses.filter((r) => r.active !== false).length > 0 ? (
+              <div className="p-5 space-y-3.5 flex-1">
+                {[...recurringExpenses]
+                  .filter((r) => r.active !== false)
+                  .sort((a, b) =>
+                    (a.nextRunDate || "").localeCompare(b.nextRunDate || "")
+                  )
+                  .slice(0, 4)
+                  .map((rule) => (
+                    <div
+                      key={rule.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 bg-[#eff4ff]/40"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-[#0b1c30] truncate">
+                          {rule.description}
+                        </p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 capitalize">
+                          {rule.frequency} · Next: {rule.nextRunDate}
+                        </p>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#006948] rounded-full"
-                          style={{ width: `${Math.min(pct, 100)}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[11px] text-slate-500 font-mono tabular-nums">
-                        <span>{vault.targetDate || "Flexible"}</span>
-                        <span>
-                          {formatCurrency(savedUSD, currentCurrency, {
-                            showCents: false,
-                          })}{" "}
-                          /{" "}
-                          {formatCurrency(targetUSD, currentCurrency, {
-                            showCents: false,
-                          })}
-                        </span>
-                      </div>
+                      <span className="text-xs font-bold font-mono tabular-nums text-[#006948] shrink-0">
+                        {formatCurrency(rule.amountUSD, currentCurrency, {
+                          showCents: false,
+                        })}
+                      </span>
                     </div>
-                  );
-                })}
+                  ))}
               </div>
             ) : (
               <div className="p-6 text-center text-sm text-slate-500 flex-1 flex flex-col items-center justify-center">
-                <Target className="w-8 h-8 text-slate-300 mb-2" />
-                <p>No savings vaults yet.</p>
+                <Repeat className="w-8 h-8 text-slate-300 mb-2" />
+                <p>No active recurring bills.</p>
                 <Link
-                  to="/goals"
+                  to="/expenses?tab=recurring"
                   className="mt-1 text-xs font-semibold text-[#006948] hover:underline"
                 >
-                  Create your first vault
+                  Schedule a bill
                 </Link>
               </div>
             )}

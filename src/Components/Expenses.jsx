@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import * as XLSX from "xlsx";
 import {
   Download,
@@ -10,8 +11,10 @@ import {
   Search,
   Trash2,
   Pencil,
+  Repeat,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
+import RecurringExpensesPanel from "./RecurringExpensesPanel";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
 import {
   CURRENCIES,
@@ -27,10 +30,27 @@ function ExpenseForm({
   onAddExpense,
   onUpdateExpense,
   onDeleteExpense,
+  recurringExpenses = [],
+  onAddRecurring,
+  onToggleRecurring,
+  onDeleteRecurring,
+  onRunDueNow,
+  onTriggerSingleNow,
   currentCurrency = "USD",
   onCurrencyChange,
   alertThreshold = 80,
 }) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() =>
+    searchParams.get("tab") === "recurring" ? "recurring" : "ledger"
+  );
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "recurring") {
+      setActiveTab("recurring");
+    }
+  }, [searchParams]);
+
   const [localExpenses, setLocalExpenses] = useState([]);
   const expenses = propExpenses !== undefined ? propExpenses : localExpenses;
 
@@ -289,7 +309,55 @@ function ExpenseForm({
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Section Tabs: Transaction Ledger vs. Recurring Bills */}
+        <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-xl border border-slate-200">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("ledger");
+              setSearchParams({});
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+              activeTab === "ledger"
+                ? "bg-[#0b1c30] text-white shadow-xs"
+                : "text-slate-600 hover:text-[#0b1c30]"
+            }`}
+          >
+            <Receipt className="w-4 h-4" />
+            <span>Expense Ledger ({expenses.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("recurring");
+              setSearchParams({ tab: "recurring" });
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+              activeTab === "recurring"
+                ? "bg-[#0b1c30] text-white shadow-xs"
+                : "text-slate-600 hover:text-[#0b1c30]"
+            }`}
+          >
+            <Repeat className="w-4 h-4" />
+            <span>
+              Recurring Bills (
+              {recurringExpenses.filter((r) => r.active !== false).length})
+            </span>
+          </button>
+        </div>
+
+        {activeTab === "recurring" ? (
+          <RecurringExpensesPanel
+            recurringExpenses={recurringExpenses}
+            onAddRecurring={onAddRecurring}
+            onToggleRecurring={onToggleRecurring}
+            onDeleteRecurring={onDeleteRecurring}
+            onRunDueNow={onRunDueNow}
+            onTriggerSingleNow={onTriggerSingleNow}
+            currentCurrency={currentCurrency}
+          />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Form Panel */}
           <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-6">
             <h2 className="text-lg font-semibold text-[#0b1c30] mb-4">
@@ -450,9 +518,16 @@ function ExpenseForm({
                         className="hover:bg-[#eff4ff]/50 transition-colors"
                       >
                         <td className="px-5 py-3.5 whitespace-nowrap">
-                          <span className="font-medium text-[#0b1c30] block">
-                            {expense.category}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-[#0b1c30]">
+                              {expense.category}
+                            </span>
+                            {expense.isRecurring && (
+                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#eff4ff] text-[#006948]">
+                                Recurring
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[11px] text-slate-400">
                             {getCategoryStream(expense.category)}
                           </span>
@@ -509,6 +584,7 @@ function ExpenseForm({
             )}
           </div>
         </div>
+        )}
       </div>
 
       <AddExpenseModal
