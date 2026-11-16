@@ -12,9 +12,12 @@ import {
   Trash2,
   Pencil,
   Repeat,
+  Calendar,
+  X,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import RecurringExpensesPanel from "./RecurringExpensesPanel";
+import ExpenseCalendarView from "./ExpenseCalendarView";
 import { exportExpensesAndAnalyticsCSV } from "../utils/exportCsv";
 import {
   CURRENCIES,
@@ -41,13 +44,28 @@ function ExpenseForm({
   alertThreshold = 80,
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(() =>
-    searchParams.get("tab") === "recurring" ? "recurring" : "ledger"
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = searchParams.get("tab");
+    if (t === "recurring") return "recurring";
+    if (t === "calendar") return "calendar";
+    return "ledger";
+  });
+  const [dateFilter, setDateFilter] = useState(
+    () => searchParams.get("date") || ""
   );
 
   useEffect(() => {
-    if (searchParams.get("tab") === "recurring") {
+    const t = searchParams.get("tab");
+    const d = searchParams.get("date") || "";
+    if (t === "recurring") {
       setActiveTab("recurring");
+    } else if (t === "calendar") {
+      setActiveTab("calendar");
+    } else {
+      setActiveTab("ledger");
+    }
+    if (d) {
+      setDateFilter(d);
     }
   }, [searchParams]);
 
@@ -212,6 +230,8 @@ function ExpenseForm({
     return [...expenses]
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
       .filter((item) => {
+        const matchesDate =
+          !dateFilter || (item.date || "").slice(0, 10) === dateFilter;
         const matchesCategory =
           categoryFilter === "all" ||
           (item.category || "").trim() === categoryFilter;
@@ -220,9 +240,9 @@ function ExpenseForm({
           (item.category || "").toLowerCase().includes(query) ||
           (item.note || item.description || "").toLowerCase().includes(query) ||
           (item.date || "").includes(query);
-        return matchesCategory && matchesQuery;
+        return matchesDate && matchesCategory && matchesQuery;
       });
-  }, [expenses, searchQuery, categoryFilter]);
+  }, [expenses, searchQuery, categoryFilter, dateFilter]);
 
   const filteredTotalUSD = filteredExpenses.reduce(
     (sum, item) => sum + (parseFloat(item.amount) || 0),
@@ -309,15 +329,15 @@ function ExpenseForm({
           </div>
         )}
 
-        {/* Section Tabs: Transaction Ledger vs. Recurring Bills */}
-        <div className="inline-flex items-center gap-1 p-1 bg-[#eff4ff] rounded-xl border border-slate-200">
+        {/* Section Tabs: Transaction Ledger, Calendar View, Recurring Bills */}
+        <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#eff4ff] rounded-xl border border-slate-200">
           <button
             type="button"
             onClick={() => {
               setActiveTab("ledger");
-              setSearchParams({});
+              setSearchParams(dateFilter ? { date: dateFilter } : {});
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === "ledger"
                 ? "bg-[#0b1c30] text-white shadow-xs"
                 : "text-slate-600 hover:text-[#0b1c30]"
@@ -329,10 +349,25 @@ function ExpenseForm({
           <button
             type="button"
             onClick={() => {
+              setActiveTab("calendar");
+              setSearchParams({ tab: "calendar" });
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+              activeTab === "calendar"
+                ? "bg-[#0b1c30] text-white shadow-xs"
+                : "text-slate-600 hover:text-[#0b1c30]"
+            }`}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Calendar View</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setActiveTab("recurring");
               setSearchParams({ tab: "recurring" });
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
               activeTab === "recurring"
                 ? "bg-[#0b1c30] text-white shadow-xs"
                 : "text-slate-600 hover:text-[#0b1c30]"
@@ -355,6 +390,29 @@ function ExpenseForm({
             onRunDueNow={onRunDueNow}
             onTriggerSingleNow={onTriggerSingleNow}
             currentCurrency={currentCurrency}
+          />
+        ) : activeTab === "calendar" ? (
+          <ExpenseCalendarView
+            expenses={expenses}
+            recurringExpenses={recurringExpenses}
+            currentCurrency={currentCurrency}
+            onJumpToDate={(dateStr) => {
+              setDateFilter(dateStr);
+              setCategoryFilter("all");
+              setSearchQuery("");
+              setActiveTab("ledger");
+              setSearchParams({ date: dateStr });
+            }}
+            onAddForDate={(dateStr) => {
+              setDate(dateStr);
+              setDateFilter(dateStr);
+              setActiveTab("ledger");
+              setSearchParams({ date: dateStr });
+            }}
+            onOpenRecurringTab={() => {
+              setActiveTab("recurring");
+              setSearchParams({ tab: "recurring" });
+            }}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -480,6 +538,17 @@ function ExpenseForm({
                       className="w-full pl-9 pr-3 py-2 text-xs text-[#0b1c30] bg-[#eff4ff]/70 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:bg-white"
                     />
                   </div>
+                  <input
+                    type="date"
+                    aria-label="Filter expenses by date"
+                    value={dateFilter}
+                    onChange={(e) => {
+                      const nextDate = e.target.value;
+                      setDateFilter(nextDate);
+                      setSearchParams(nextDate ? { date: nextDate } : {});
+                    }}
+                    className="px-3 py-2 text-xs font-medium text-[#0b1c30] bg-[#eff4ff]/70 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#006948] focus:bg-white font-mono tabular-nums"
+                  />
                   <select
                     aria-label="Filter expenses by category"
                     value={categoryFilter}
@@ -493,6 +562,40 @@ function ExpenseForm({
                       </option>
                     ))}
                   </select>
+                </div>
+              )}
+
+              {dateFilter && (
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2 rounded-lg bg-[#eff4ff] border border-slate-200 text-xs">
+                  <span className="text-[#0b1c30]">
+                    Showing expenses for{" "}
+                    <strong className="font-mono tabular-nums">
+                      {dateFilter}
+                    </strong>
+                  </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("calendar");
+                        setSearchParams({ tab: "calendar" });
+                      }}
+                      className="font-semibold text-[#006948] hover:underline cursor-pointer"
+                    >
+                      Back to Calendar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDateFilter("");
+                        setSearchParams({});
+                      }}
+                      className="inline-flex items-center gap-1 font-medium text-slate-600 hover:text-[#0b1c30] cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      <span>Clear Date</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

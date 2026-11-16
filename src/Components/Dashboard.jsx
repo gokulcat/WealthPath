@@ -30,6 +30,7 @@ import {
   PiggyBank,
   Gauge,
   Repeat,
+  Calendar,
 } from "lucide-react";
 import AddExpenseModal from "./AddExpenseModal";
 import DashboardGoalsSection from "./DashboardGoalsSection";
@@ -594,6 +595,13 @@ const Dashboard = ({
               <FileSpreadsheet className="w-4 h-4 text-[#006948]" />
               <span>Export Report ({currentCurrency})</span>
             </button>
+            <Link
+              to="/expenses?tab=calendar"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 hover:bg-[#eff4ff] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0"
+            >
+              <Calendar className="w-4 h-4 text-[#006948]" />
+              <span>Calendar</span>
+            </Link>
             <Link
               to="/planner"
               className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-[#0b1c30] bg-white border border-slate-200 hover:bg-[#eff4ff] rounded-lg transition-colors duration-150 whitespace-nowrap shrink-0"
